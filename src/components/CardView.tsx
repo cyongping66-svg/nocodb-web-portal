@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash } from '@phosphor-icons/react';
+import { Plus, Pencil, Trash, File, Link, Envelope, Phone } from '@phosphor-icons/react';
 import { Table, Row } from '@/types';
 import { toast } from 'sonner';
 
@@ -56,7 +56,26 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
     const newRow: Row = {
       id: Date.now().toString(),
       ...table.columns.reduce((acc, col) => {
-        acc[col.id] = newRowValues[col.id] || (col.type === 'boolean' ? false : col.type === 'date' ? new Date().toISOString().split('T')[0] : '');
+        if (newRowValues[col.id] !== undefined) {
+          acc[col.id] = newRowValues[col.id];
+        } else {
+          switch (col.type) {
+            case 'boolean':
+              acc[col.id] = false;
+              break;
+            case 'date':
+              acc[col.id] = new Date().toISOString().split('T')[0];
+              break;
+            case 'number':
+              acc[col.id] = 0;
+              break;
+            case 'file':
+              acc[col.id] = null;
+              break;
+            default:
+              acc[col.id] = '';
+          }
+        }
         return acc;
       }, {} as Record<string, any>)
     };
@@ -69,6 +88,19 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
     setNewRowValues({});
     setIsAddRowOpen(false);
     toast.success('行新增成功');
+  };
+
+  const handleFileUpload = (file: File, onChange: (value: any) => void) => {
+    const fileUrl = URL.createObjectURL(file);
+    const fileData = {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      url: fileUrl,
+      lastModified: file.lastModified
+    };
+    onChange(fileData);
+    toast.success('檔案上傳成功');
   };
 
   const renderFieldInput = (column: any, value: any, onChange: (value: any) => void, isEditing = false) => {
@@ -127,6 +159,66 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
             />
           </div>
         );
+      case 'file':
+        return (
+          <div className="space-y-2">
+            <Label htmlFor={inputId}>{column.name}</Label>
+            <Input
+              id={inputId}
+              type="file"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) {
+                  handleFileUpload(file, onChange);
+                }
+              }}
+            />
+            {value && (
+              <div className="text-sm text-muted-foreground">
+                已選擇: {value.name}
+              </div>
+            )}
+          </div>
+        );
+      case 'url':
+        return (
+          <div className="space-y-2">
+            <Label htmlFor={inputId}>{column.name}</Label>
+            <Input
+              id={inputId}
+              type="url"
+              value={value || ''}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder="https://example.com"
+            />
+          </div>
+        );
+      case 'email':
+        return (
+          <div className="space-y-2">
+            <Label htmlFor={inputId}>{column.name}</Label>
+            <Input
+              id={inputId}
+              type="email"
+              value={value || ''}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder="example@email.com"
+            />
+          </div>
+        );
+      case 'phone':
+        return (
+          <div className="space-y-2">
+            <Label htmlFor={inputId}>{column.name}</Label>
+            <Input
+              id={inputId}
+              type="tel"
+              value={value || ''}
+              onChange={(e) => onChange(e.target.value)}
+              placeholder="0912-345-678"
+            />
+          </div>
+        );
       default:
         return (
           <div className="space-y-2">
@@ -149,6 +241,62 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
           <div className="flex items-center space-x-2">
             <Checkbox checked={Boolean(value)} readOnly />
             <span className="text-sm">{Boolean(value) ? '是' : '否'}</span>
+          </div>
+        );
+      case 'file':
+        if (!value) return <span className="text-sm text-muted-foreground">無檔案</span>;
+        return (
+          <div className="flex items-center gap-2 text-sm">
+            <File className="w-4 h-4 text-blue-500" />
+            <a 
+              href={value.url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline"
+            >
+              {value.name}
+            </a>
+          </div>
+        );
+      case 'url':
+        if (!value) return <span className="text-sm text-muted-foreground">無連結</span>;
+        return (
+          <div className="flex items-center gap-2 text-sm">
+            <Link className="w-4 h-4 text-blue-500" />
+            <a 
+              href={value.startsWith('http') ? value : `https://${value}`}
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline"
+            >
+              {value}
+            </a>
+          </div>
+        );
+      case 'email':
+        if (!value) return <span className="text-sm text-muted-foreground">無電子郵件</span>;
+        return (
+          <div className="flex items-center gap-2 text-sm">
+            <Envelope className="w-4 h-4 text-green-500" />
+            <a 
+              href={`mailto:${value}`}
+              className="text-green-600 hover:text-green-800 underline"
+            >
+              {value}
+            </a>
+          </div>
+        );
+      case 'phone':
+        if (!value) return <span className="text-sm text-muted-foreground">無電話號碼</span>;
+        return (
+          <div className="flex items-center gap-2 text-sm">
+            <Phone className="w-4 h-4 text-purple-500" />
+            <a 
+              href={`tel:${value}`}
+              className="text-purple-600 hover:text-purple-800 underline"
+            >
+              {value}
+            </a>
           </div>
         );
       default:

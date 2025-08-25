@@ -1,7 +1,7 @@
 export interface Column {
   id: string;
   name: string;
-  type: 'text' | 'number' | 'date' | 'boolean' | 'select';
+  type: 'text' | 'number' | 'date' | 'boolean' | 'select' | 'file' | 'url' | 'email' | 'phone';
   options?: string[];
 }
 

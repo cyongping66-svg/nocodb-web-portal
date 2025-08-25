@@ -23,6 +23,8 @@ function App() {
         { id: 'department', name: '部門', type: 'select', options: ['研發部', '行銷部', '人資部', '財務部'] },
         { id: 'salary', name: '薪資', type: 'number' },
         { id: 'hired_date', name: '到職日期', type: 'date' },
+        { id: 'email', name: '電子郵件', type: 'email' },
+        { id: 'phone', name: '聯絡電話', type: 'phone' },
         { id: 'active', name: '在職狀態', type: 'boolean' }
       ],
       rows: [
@@ -32,6 +34,8 @@ function App() {
           department: '研發部',
           salary: 65000,
           hired_date: '2023-01-15',
+          email: 'ming.zhang@company.com',
+          phone: '0912-345-678',
           active: true
         },
         {
@@ -40,6 +44,8 @@ function App() {
           department: '行銷部',
           salary: 58000,
           hired_date: '2023-03-10',
+          email: 'hua.li@company.com',
+          phone: '0923-456-789',
           active: true
         },
         {
@@ -48,6 +54,8 @@ function App() {
           department: '財務部', 
           salary: 72000,
           hired_date: '2022-11-20',
+          email: 'david.wang@company.com',
+          phone: '0934-567-890',
           active: false
         }
       ]
@@ -60,6 +68,8 @@ function App() {
         { id: 'category', name: '分類', type: 'select', options: ['電子產品', '服飾配件', '居家用品', '運動器材'] },
         { id: 'price', name: '價格', type: 'number' },
         { id: 'launch_date', name: '上市日期', type: 'date' },
+        { id: 'product_url', name: '產品網頁', type: 'url' },
+        { id: 'manual', name: '使用手冊', type: 'file' },
         { id: 'available', name: '供貨狀態', type: 'boolean' }
       ],
       rows: [
@@ -69,6 +79,8 @@ function App() {
           category: '電子產品',
           price: 2990,
           launch_date: '2023-06-01',
+          product_url: 'https://example.com/wireless-earbuds',
+          manual: null,
           available: true
         },
         {
@@ -77,6 +89,8 @@ function App() {
           category: '服飾配件', 
           price: 890,
           launch_date: '2023-04-15',
+          product_url: 'https://example.com/sports-tshirt',
+          manual: null,
           available: true
         },
         {
@@ -85,6 +99,8 @@ function App() {
           category: '居家用品',
           price: 15900,
           launch_date: '2023-08-20',
+          product_url: 'https://example.com/robot-vacuum',
+          manual: null,
           available: false
         }
       ]
@@ -108,17 +124,20 @@ function App() {
       name: newTableName.trim(),
       columns: [
         { id: 'name', name: '姓名', type: 'text' },
+        { id: 'email', name: '電子郵件', type: 'email' },
         { id: 'created', name: '建立日期', type: 'date' }
       ],
       rows: [
         {
           id: (Date.now() + 1).toString(),
           name: '張小明',
+          email: 'ming.zhang@example.com',
           created: new Date().toISOString().split('T')[0]
         },
         {
           id: (Date.now() + 2).toString(), 
           name: '李小華',
+          email: 'hua.li@example.com',
           created: new Date().toISOString().split('T')[0]
         }
       ]

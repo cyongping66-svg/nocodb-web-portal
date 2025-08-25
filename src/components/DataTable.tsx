@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Pencil, Trash, ArrowUp, ArrowDown, GripVertical } from '@phosphor-icons/react';
+import { Plus, Pencil, Trash, ArrowUp, ArrowDown, GripVertical, Link, File, Envelope, Phone } from '@phosphor-icons/react';
 import { Table, Column, Row } from '@/types';
 import { toast } from 'sonner';
 import {
@@ -168,7 +168,22 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
     const newRow: Row = {
       id: Date.now().toString(),
       ...table.columns.reduce((acc, col) => {
-        acc[col.id] = col.type === 'boolean' ? false : col.type === 'date' ? new Date().toISOString().split('T')[0] : '';
+        switch (col.type) {
+          case 'boolean':
+            acc[col.id] = false;
+            break;
+          case 'date':
+            acc[col.id] = new Date().toISOString().split('T')[0];
+            break;
+          case 'number':
+            acc[col.id] = 0;
+            break;
+          case 'file':
+            acc[col.id] = null;
+            break;
+          default:
+            acc[col.id] = '';
+        }
         return acc;
       }, {} as Record<string, any>)
     };
@@ -213,6 +228,27 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
     onUpdateTable({ ...table, rows: updatedRows });
     setEditingCell(null);
     setEditValue('');
+  };
+
+  const handleFileUpload = (rowId: string, columnId: string, file: File) => {
+    // Create a file URL for display
+    const fileUrl = URL.createObjectURL(file);
+    const fileData = {
+      name: file.name,
+      size: file.size,
+      type: file.type,
+      url: fileUrl,
+      lastModified: file.lastModified
+    };
+
+    const updatedRows = table.rows.map(row =>
+      row.id === rowId
+        ? { ...row, [columnId]: fileData }
+        : row
+    );
+
+    onUpdateTable({ ...table, rows: updatedRows });
+    toast.success('檔案上傳成功');
   };
 
   const cancelEdit = () => {
@@ -267,6 +303,21 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
             </SelectContent>
           </Select>
         );
+      } else if (column.type === 'file') {
+        return (
+          <Input
+            type="file"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) {
+                handleFileUpload(row.id, column.id, file);
+                setEditingCell(null);
+              }
+            }}
+            className="h-8"
+            autoFocus
+          />
+        );
       } else {
         return (
           <Input
@@ -278,23 +329,90 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
               if (e.key === 'Escape') cancelEdit();
             }}
             className="h-8"
-            type={column.type === 'number' ? 'number' : column.type === 'date' ? 'date' : 'text'}
+            type={
+              column.type === 'number' ? 'number' :
+              column.type === 'date' ? 'date' :
+              column.type === 'email' ? 'email' :
+              column.type === 'phone' ? 'tel' :
+              column.type === 'url' ? 'url' : 'text'
+            }
             autoFocus
           />
         );
       }
     }
 
+    // Display logic for different column types
+    const renderCellContent = () => {
+      if (column.type === 'boolean') {
+        return <Checkbox checked={Boolean(value)} readOnly />;
+      } else if (column.type === 'file' && value) {
+        return (
+          <div className="flex items-center gap-2 text-sm">
+            <File className="w-4 h-4 text-blue-500" />
+            <a 
+              href={value.url} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline truncate max-w-[150px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {value.name}
+            </a>
+          </div>
+        );
+      } else if (column.type === 'url' && value) {
+        return (
+          <div className="flex items-center gap-2 text-sm">
+            <Link className="w-4 h-4 text-blue-500" />
+            <a 
+              href={value.startsWith('http') ? value : `https://${value}`}
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-800 underline truncate max-w-[150px]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {value}
+            </a>
+          </div>
+        );
+      } else if (column.type === 'email' && value) {
+        return (
+          <div className="flex items-center gap-2 text-sm">
+            <Envelope className="w-4 h-4 text-green-500" />
+            <a 
+              href={`mailto:${value}`}
+              className="text-green-600 hover:text-green-800 underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {value}
+            </a>
+          </div>
+        );
+      } else if (column.type === 'phone' && value) {
+        return (
+          <div className="flex items-center gap-2 text-sm">
+            <Phone className="w-4 h-4 text-purple-500" />
+            <a 
+              href={`tel:${value}`}
+              className="text-purple-600 hover:text-purple-800 underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {value}
+            </a>
+          </div>
+        );
+      } else {
+        return <span className="text-sm">{String(value || '')}</span>;
+      }
+    };
+
     return (
       <div
         className="p-2 cursor-pointer hover:bg-muted/50 transition-colors min-h-[32px] flex items-center"
-        onClick={() => startEdit(row.id, column.id, value)}
+        onClick={() => startEdit(row.id, column.id, column.type === 'file' ? '' : value)}
       >
-        {column.type === 'boolean' ? (
-          <Checkbox checked={Boolean(value)} readOnly />
-        ) : (
-          <span className="text-sm">{String(value || '')}</span>
-        )}
+        {renderCellContent()}
       </div>
     );
   };
@@ -341,6 +459,10 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                       <SelectItem value="date">日期</SelectItem>
                       <SelectItem value="boolean">布林值</SelectItem>
                       <SelectItem value="select">選項</SelectItem>
+                      <SelectItem value="file">檔案</SelectItem>
+                      <SelectItem value="url">網址連結</SelectItem>
+                      <SelectItem value="email">電子郵件</SelectItem>
+                      <SelectItem value="phone">電話號碼</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
