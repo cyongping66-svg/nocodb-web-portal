@@ -504,7 +504,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
 
     // 欄位篩選
     return Object.entries(filters).every(([filterKey, filterValue]) => {
-      if (!filterValue) return true;
+      if (!filterValue || filterValue === '__all__') return true;
       
       // 檢查是否為範圍篩選（數字或日期）
       if (filterKey.endsWith('_min') || filterKey.endsWith('_max') || 
@@ -783,17 +783,17 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                       if (column.type === 'boolean') {
                         return (
                           <Select 
-                            value={filters[column.id] || ''} 
+                            value={filters[column.id] || '__all__'} 
                             onValueChange={(value) => setFilters(prev => ({
                               ...prev,
-                              [column.id]: value
+                              [column.id]: value === '__all__' ? '' : value
                             }))}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="選擇布林值" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">全部</SelectItem>
+                              <SelectItem value="__all__">全部</SelectItem>
                               <SelectItem value="true">是</SelectItem>
                               <SelectItem value="false">否</SelectItem>
                             </SelectContent>
@@ -802,17 +802,17 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                       } else if (column.type === 'select' && column.options) {
                         return (
                           <Select 
-                            value={filters[column.id] || ''} 
+                            value={filters[column.id] || '__all__'} 
                             onValueChange={(value) => setFilters(prev => ({
                               ...prev,
-                              [column.id]: value
+                              [column.id]: value === '__all__' ? '' : value
                             }))}
                           >
                             <SelectTrigger>
                               <SelectValue placeholder="選擇選項" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">全部</SelectItem>
+                              <SelectItem value="__all__">全部</SelectItem>
                               {column.options.map((option, index) => (
                                 <SelectItem key={option} value={option}>
                                   <div className="flex items-center gap-2">
