@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Plus, Table as TableIcon, LayoutGrid, Download } from '@phosphor-icons/react';
-import { toast } from 'sonner';
+import { toast, Toaster } from 'sonner';
 import { Table, ViewMode } from '@/types';
 import { TableManager } from '@/components/TableManager';
 import { DataTable } from '@/components/DataTable';
@@ -168,6 +168,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-background">
+      <Toaster position="top-right" />
       <div className="flex h-screen">
         {/* Sidebar */}
         <div className="w-64 border-r border-border bg-card">
