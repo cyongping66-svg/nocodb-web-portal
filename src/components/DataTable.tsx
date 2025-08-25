@@ -38,9 +38,13 @@ interface SortableHeaderProps {
   sortConfig: { key: string; direction: 'asc' | 'desc' } | null;
   onSort: (columnId: string) => void;
   onDelete: (columnId: string) => void;
+  onUpdateColumn: (columnId: string, newName: string) => void;
 }
 
-function SortableHeader({ column, sortConfig, onSort, onDelete }: SortableHeaderProps) {
+function SortableHeader({ column, sortConfig, onSort, onDelete, onUpdateColumn }: SortableHeaderProps) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(column.name);
+
   const {
     attributes,
     listeners,
@@ -56,6 +60,34 @@ function SortableHeader({ column, sortConfig, onSort, onDelete }: SortableHeader
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsEditing(true);
+    setEditValue(column.name);
+  };
+
+  const handleSaveEdit = () => {
+    if (editValue.trim() && editValue.trim() !== column.name) {
+      onUpdateColumn(column.id, editValue.trim());
+    }
+    setIsEditing(false);
+  };
+
+  const handleCancelEdit = () => {
+    setIsEditing(false);
+    setEditValue(column.name);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSaveEdit();
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      handleCancelEdit();
+    }
+  };
+
   return (
     <th 
       ref={setNodeRef} 
@@ -63,7 +95,7 @@ function SortableHeader({ column, sortConfig, onSort, onDelete }: SortableHeader
       className="text-left border-r border-border last:border-r-0 relative"
     >
       <div className="flex items-center justify-between p-3 group">
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-1">
           <button
             className="p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
             {...attributes}
@@ -71,15 +103,45 @@ function SortableHeader({ column, sortConfig, onSort, onDelete }: SortableHeader
           >
             <GripVertical className="w-3 h-3 text-muted-foreground" />
           </button>
-          <button
-            className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
-            onClick={() => onSort(column.id)}
-          >
-            {column.name}
-            {sortConfig?.key === column.id && (
-              sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-            )}
-          </button>
+          
+          {isEditing ? (
+            <Input
+              value={editValue}
+              onChange={(e) => setEditValue(e.target.value)}
+              onBlur={handleSaveEdit}
+              onKeyDown={handleKeyDown}
+              className="h-7 text-sm font-medium"
+              autoFocus
+            />
+          ) : (
+            <div className="flex items-center gap-1">
+              <div className="flex items-center gap-2">
+                <span 
+                  className="hover:bg-muted/50 px-1 py-0.5 rounded cursor-pointer transition-colors text-sm font-medium text-foreground"
+                  onClick={handleEditClick}
+                  title="點擊編輯欄位名稱"
+                >
+                  {column.name}
+                </span>
+                <button
+                  className="flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary transition-colors"
+                  onClick={() => onSort(column.id)}
+                  title="排序"
+                >
+                  {sortConfig?.key === column.id && (
+                    sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                  )}
+                </button>
+              </div>
+              <button
+                className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 hover:bg-muted rounded"
+                onClick={handleEditClick}
+                title="編輯欄位名稱"
+              >
+                <Pencil className="w-3 h-3 text-muted-foreground" />
+              </button>
+            </div>
+          )}
         </div>
         <Button
           variant="ghost"
@@ -147,6 +209,19 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
     setNewColumn({ name: '', type: 'text', options: [''] });
     setIsAddColumnOpen(false);
     toast.success('欄位新增成功');
+  };
+
+  const updateColumn = (columnId: string, newName: string) => {
+    const updatedColumns = table.columns.map(col =>
+      col.id === columnId ? { ...col, name: newName } : col
+    );
+
+    onUpdateTable({
+      ...table,
+      columns: updatedColumns
+    });
+
+    toast.success('欄位名稱已更新');
   };
 
   const deleteColumn = (columnId: string) => {
@@ -525,6 +600,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                         sortConfig={sortConfig}
                         onSort={handleSort}
                         onDelete={deleteColumn}
+                        onUpdateColumn={updateColumn}
                       />
                     ))}
                   </SortableContext>
