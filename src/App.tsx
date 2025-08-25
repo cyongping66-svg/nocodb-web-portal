@@ -14,8 +14,83 @@ import { DataTable } from '@/components/DataTable';
 import { CardView } from '@/components/CardView';
 
 function App() {
-  const [tables, setTables] = useKV<Table[]>('database-tables', []);
-  const [activeTableId, setActiveTableId] = useState<string | null>(null);
+  const [tables, setTables] = useKV<Table[]>('database-tables', [
+    {
+      id: 'sample-employees',
+      name: '員工資料',
+      columns: [
+        { id: 'name', name: '姓名', type: 'text' },
+        { id: 'department', name: '部門', type: 'select', options: ['研發部', '行銷部', '人資部', '財務部'] },
+        { id: 'salary', name: '薪資', type: 'number' },
+        { id: 'hired_date', name: '到職日期', type: 'date' },
+        { id: 'active', name: '在職狀態', type: 'boolean' }
+      ],
+      rows: [
+        {
+          id: 'emp1',
+          name: '張小明',
+          department: '研發部',
+          salary: 65000,
+          hired_date: '2023-01-15',
+          active: true
+        },
+        {
+          id: 'emp2', 
+          name: '李小華',
+          department: '行銷部',
+          salary: 58000,
+          hired_date: '2023-03-10',
+          active: true
+        },
+        {
+          id: 'emp3',
+          name: '王大偉',
+          department: '財務部', 
+          salary: 72000,
+          hired_date: '2022-11-20',
+          active: false
+        }
+      ]
+    },
+    {
+      id: 'sample-products',
+      name: '產品清單',
+      columns: [
+        { id: 'product_name', name: '產品名稱', type: 'text' },
+        { id: 'category', name: '分類', type: 'select', options: ['電子產品', '服飾配件', '居家用品', '運動器材'] },
+        { id: 'price', name: '價格', type: 'number' },
+        { id: 'launch_date', name: '上市日期', type: 'date' },
+        { id: 'available', name: '供貨狀態', type: 'boolean' }
+      ],
+      rows: [
+        {
+          id: 'prod1',
+          product_name: '無線藍牙耳機',
+          category: '電子產品',
+          price: 2990,
+          launch_date: '2023-06-01',
+          available: true
+        },
+        {
+          id: 'prod2',
+          product_name: '運動T恤',
+          category: '服飾配件', 
+          price: 890,
+          launch_date: '2023-04-15',
+          available: true
+        },
+        {
+          id: 'prod3',
+          product_name: '智能掃地機器人',
+          category: '居家用品',
+          price: 15900,
+          launch_date: '2023-08-20',
+          available: false
+        }
+      ]
+    }
+  ]);
+  const [activeTableId, setActiveTableId] = useState<string | null>('sample-employees');
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [newTableName, setNewTableName] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -24,7 +99,7 @@ function App() {
 
   const createTable = () => {
     if (!newTableName.trim()) {
-      toast.error('Please enter a table name');
+      toast.error('請輸入資料表名稱');
       return;
     }
 
@@ -32,17 +107,28 @@ function App() {
       id: Date.now().toString(),
       name: newTableName.trim(),
       columns: [
-        { id: 'name', name: 'Name', type: 'text' },
-        { id: 'created', name: 'Created', type: 'date' }
+        { id: 'name', name: '姓名', type: 'text' },
+        { id: 'created', name: '建立日期', type: 'date' }
       ],
-      rows: []
+      rows: [
+        {
+          id: (Date.now() + 1).toString(),
+          name: '張小明',
+          created: new Date().toISOString().split('T')[0]
+        },
+        {
+          id: (Date.now() + 2).toString(), 
+          name: '李小華',
+          created: new Date().toISOString().split('T')[0]
+        }
+      ]
     };
 
     setTables(currentTables => [...currentTables, newTable]);
     setActiveTableId(newTable.id);
     setNewTableName('');
     setIsCreateDialogOpen(false);
-    toast.success(`Table "${newTable.name}" created successfully`);
+    toast.success(`資料表「${newTable.name}」建立成功`);
   };
 
   const deleteTable = (tableId: string) => {
@@ -50,7 +136,7 @@ function App() {
     if (activeTableId === tableId) {
       setActiveTableId(null);
     }
-    toast.success('Table deleted successfully');
+    toast.success('資料表刪除成功');
   };
 
   const updateTable = (updatedTable: Table) => {
@@ -77,7 +163,7 @@ function App() {
     link.download = `${activeTable.name.toLowerCase().replace(/\s+/g, '-')}.json`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success('Data exported successfully');
+    toast.success('資料匯出成功');
   };
 
   return (
@@ -86,7 +172,7 @@ function App() {
         {/* Sidebar */}
         <div className="w-64 border-r border-border bg-card">
           <div className="p-4 border-b border-border">
-            <h1 className="text-xl font-bold text-foreground">Database Builder</h1>
+            <h1 className="text-xl font-bold text-foreground">資料庫建構器</h1>
           </div>
           
           <div className="p-4">
@@ -94,26 +180,26 @@ function App() {
               <DialogTrigger asChild>
                 <Button className="w-full mb-4" size="sm">
                   <Plus className="w-4 h-4 mr-2" />
-                  New Table
+                  新增資料表
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Create New Table</DialogTitle>
+                  <DialogTitle>建立新資料表</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="table-name">Table Name</Label>
+                    <Label htmlFor="table-name">資料表名稱</Label>
                     <Input
                       id="table-name"
                       value={newTableName}
                       onChange={(e) => setNewTableName(e.target.value)}
-                      placeholder="Enter table name"
+                      placeholder="輸入資料表名稱"
                       onKeyDown={(e) => e.key === 'Enter' && createTable()}
                     />
                   </div>
                   <Button onClick={createTable} className="w-full">
-                    Create Table
+                    建立資料表
                   </Button>
                 </div>
               </DialogContent>
@@ -139,7 +225,7 @@ function App() {
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" onClick={exportData}>
                       <Download className="w-4 h-4 mr-2" />
-                      Export
+                      匯出
                     </Button>
                     <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)}>
                       <TabsList>
@@ -168,17 +254,17 @@ function App() {
             <div className="flex-1 flex items-center justify-center">
               <Card className="max-w-md">
                 <CardHeader>
-                  <CardTitle className="text-center">Welcome to Database Builder</CardTitle>
+                  <CardTitle className="text-center">歡迎使用資料庫建構器</CardTitle>
                 </CardHeader>
                 <CardContent className="text-center">
                   <p className="text-muted-foreground mb-4">
-                    Create your first table to start organizing your data
+                    建立您的第一個資料表來開始組織您的資料
                   </p>
                   <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                     <DialogTrigger asChild>
                       <Button>
                         <Plus className="w-4 h-4 mr-2" />
-                        Create First Table
+                        建立第一個資料表
                       </Button>
                     </DialogTrigger>
                   </Dialog>

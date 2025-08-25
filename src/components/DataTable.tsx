@@ -23,7 +23,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
 
   const addColumn = () => {
     if (!newColumn.name.trim()) {
-      toast.error('Please enter a column name');
+      toast.error('請輸入欄位名稱');
       return;
     }
 
@@ -41,7 +41,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
 
     setNewColumn({ name: '', type: 'text', options: [''] });
     setIsAddColumnOpen(false);
-    toast.success('Column added successfully');
+    toast.success('欄位新增成功');
   };
 
   const deleteColumn = (columnId: string) => {
@@ -56,7 +56,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
       columns: updatedColumns,
       rows: updatedRows
     });
-    toast.success('Column deleted successfully');
+    toast.success('欄位刪除成功');
   };
 
   const addRow = () => {
@@ -200,48 +200,48 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
         <div className="flex items-center gap-2">
           <Button onClick={addRow} size="sm">
             <Plus className="w-4 h-4 mr-2" />
-            Add Row
+            新增資料列
           </Button>
           
           <Dialog open={isAddColumnOpen} onOpenChange={setIsAddColumnOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">
                 <Plus className="w-4 h-4 mr-2" />
-                Add Column
+                新增欄位
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add New Column</DialogTitle>
+                <DialogTitle>新增欄位</DialogTitle>
               </DialogHeader>
               <div className="space-y-4">
                 <div>
-                  <Label htmlFor="column-name">Column Name</Label>
+                  <Label htmlFor="column-name">欄位名稱</Label>
                   <Input
                     id="column-name"
                     value={newColumn.name}
                     onChange={(e) => setNewColumn({ ...newColumn, name: e.target.value })}
-                    placeholder="Enter column name"
+                    placeholder="輸入欄位名稱"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="column-type">Data Type</Label>
+                  <Label htmlFor="column-type">資料類型</Label>
                   <Select value={newColumn.type} onValueChange={(value: Column['type']) => setNewColumn({ ...newColumn, type: value })}>
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="text">Text</SelectItem>
-                      <SelectItem value="number">Number</SelectItem>
-                      <SelectItem value="date">Date</SelectItem>
-                      <SelectItem value="boolean">Boolean</SelectItem>
-                      <SelectItem value="select">Select</SelectItem>
+                      <SelectItem value="text">文字</SelectItem>
+                      <SelectItem value="number">數字</SelectItem>
+                      <SelectItem value="date">日期</SelectItem>
+                      <SelectItem value="boolean">布林值</SelectItem>
+                      <SelectItem value="select">選項</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
                 {newColumn.type === 'select' && (
                   <div>
-                    <Label>Options</Label>
+                    <Label>選項</Label>
                     {newColumn.options.map((option, index) => (
                       <div key={index} className="flex gap-2 mt-2">
                         <Input
@@ -251,7 +251,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                             newOptions[index] = e.target.value;
                             setNewColumn({ ...newColumn, options: newOptions });
                           }}
-                          placeholder={`Option ${index + 1}`}
+                          placeholder={`選項 ${index + 1}`}
                         />
                         {index === newColumn.options.length - 1 && (
                           <Button
@@ -268,7 +268,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                   </div>
                 )}
                 <Button onClick={addColumn} className="w-full">
-                  Add Column
+                  新增欄位
                 </Button>
               </div>
             </DialogContent>
@@ -276,7 +276,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
         </div>
         
         <span className="text-sm text-muted-foreground">
-          {table.rows.length} row{table.rows.length !== 1 ? 's' : ''}
+          {table.rows.length} 筆資料
         </span>
       </div>
 
@@ -334,7 +334,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
               {table.rows.length === 0 && (
                 <tr>
                   <td colSpan={table.columns.length + 1} className="p-8 text-center text-muted-foreground">
-                    No data yet. Click "Add Row" to get started.
+                    尚無資料。點擊「新增資料列」開始輸入資料。
                   </td>
                 </tr>
               )}

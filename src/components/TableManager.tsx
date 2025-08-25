@@ -15,7 +15,7 @@ export function TableManager({ tables, activeTableId, onSelectTable, onDeleteTab
     return (
       <div className="text-center text-muted-foreground py-8">
         <TableIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
-        <p className="text-sm">No tables yet</p>
+        <p className="text-sm">尚無資料表</p>
       </div>
     );
   }
@@ -52,15 +52,15 @@ export function TableManager({ tables, activeTableId, onSelectTable, onDeleteTab
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete Table</AlertDialogTitle>
+                <AlertDialogTitle>刪除資料表</AlertDialogTitle>
                 <AlertDialogDescription>
-                  Are you sure you want to delete "{table.name}"? This action cannot be undone and will permanently delete all data in this table.
+                  您確定要刪除「{table.name}」嗎？此操作無法復原，將永久刪除此資料表中的所有資料。
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>取消</AlertDialogCancel>
                 <AlertDialogAction onClick={() => onDeleteTable(table.id)}>
-                  Delete
+                  刪除
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>

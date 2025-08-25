@@ -36,7 +36,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
     onUpdateTable({ ...table, rows: updatedRows });
     setEditingRow(null);
     setEditValues({});
-    toast.success('Row updated successfully');
+    toast.success('資料列更新成功');
   };
 
   const cancelEdit = () => {
@@ -49,7 +49,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
       ...table,
       rows: table.rows.filter(row => row.id !== rowId)
     });
-    toast.success('Row deleted successfully');
+    toast.success('資料列刪除成功');
   };
 
   const addNewRow = () => {
@@ -68,7 +68,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
 
     setNewRowValues({});
     setIsAddRowOpen(false);
-    toast.success('Row added successfully');
+    toast.success('資料列新增成功');
   };
 
   const renderFieldInput = (column: any, value: any, onChange: (value: any) => void, isEditing = false) => {
@@ -92,7 +92,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
             <Label htmlFor={inputId}>{column.name}</Label>
             <Select value={String(value || '')} onValueChange={onChange}>
               <SelectTrigger>
-                <SelectValue placeholder={`Select ${column.name.toLowerCase()}`} />
+                <SelectValue placeholder={`選擇${column.name.toLowerCase()}`} />
               </SelectTrigger>
               <SelectContent>
                 {column.options?.map((option: string) => (
@@ -111,7 +111,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
               type="number"
               value={value || ''}
               onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
-              placeholder={`Enter ${column.name.toLowerCase()}`}
+              placeholder={`輸入${column.name.toLowerCase()}`}
             />
           </div>
         );
@@ -135,7 +135,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
               id={inputId}
               value={value || ''}
               onChange={(e) => onChange(e.target.value)}
-              placeholder={`Enter ${column.name.toLowerCase()}`}
+              placeholder={`輸入${column.name.toLowerCase()}`}
             />
           </div>
         );
@@ -148,7 +148,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
         return (
           <div className="flex items-center space-x-2">
             <Checkbox checked={Boolean(value)} readOnly />
-            <span className="text-sm">{Boolean(value) ? 'Yes' : 'No'}</span>
+            <span className="text-sm">{Boolean(value) ? '是' : '否'}</span>
           </div>
         );
       default:
@@ -163,12 +163,12 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
-              Add Row
+              新增資料列
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>Add New Row</DialogTitle>
+              <DialogTitle>新增資料列</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               {table.columns.map((column) => (
@@ -182,10 +182,10 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
               ))}
               <div className="flex gap-2 pt-4">
                 <Button onClick={addNewRow} className="flex-1">
-                  Add Row
+                  新增資料列
                 </Button>
                 <Button variant="outline" onClick={() => setIsAddRowOpen(false)} className="flex-1">
-                  Cancel
+                  取消
                 </Button>
               </div>
             </div>
@@ -193,14 +193,14 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
         </Dialog>
         
         <span className="text-sm text-muted-foreground">
-          {table.rows.length} row{table.rows.length !== 1 ? 's' : ''}
+          {table.rows.length} 筆資料
         </span>
       </div>
 
       {table.rows.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-muted-foreground">No data yet. Click "Add Row" to get started.</p>
+            <p className="text-muted-foreground">尚無資料。點擊「新增資料列」開始輸入資料。</p>
           </CardContent>
         </Card>
       ) : (
@@ -210,16 +210,16 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-base">
-                    {String(row[table.columns[0]?.id] || 'Untitled')}
+                    {String(row[table.columns[0]?.id] || '未命名')}
                   </CardTitle>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     {editingRow === row.id ? (
                       <>
                         <Button size="sm" variant="ghost" onClick={saveEdit}>
-                          Save
+                          儲存
                         </Button>
                         <Button size="sm" variant="ghost" onClick={cancelEdit}>
-                          Cancel
+                          取消
                         </Button>
                       </>
                     ) : (
