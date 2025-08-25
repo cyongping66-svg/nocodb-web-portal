@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Pencil, Trash, ArrowUp, ArrowDown, GripVertical, Link, File, Envelope, Phone, MagnifyingGlass, Funnel, X } from '@phosphor-icons/react';
+import { Plus, Pencil, Trash, ArrowUp, ArrowDown, GripVertical, Link, File, Envelope, Phone, MagnifyingGlass, Funnel, X, CheckSquare, Square, Download, Copy } from '@phosphor-icons/react';
 import { Table, Column, Row } from '@/types';
 import { toast } from 'sonner';
 import {
@@ -165,6 +165,10 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<{ [columnId: string]: string }>({});
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
+  const [batchEditColumn, setBatchEditColumn] = useState('');
+  const [batchEditValue, setBatchEditValue] = useState('');
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -345,6 +349,118 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
   const clearFilters = () => {
     setFilters({});
     setSearchTerm('');
+  };
+
+  // 批量操作函數
+  const toggleRowSelection = (rowId: string) => {
+    const newSelected = new Set(selectedRows);
+    if (newSelected.has(rowId)) {
+      newSelected.delete(rowId);
+    } else {
+      newSelected.add(rowId);
+    }
+    setSelectedRows(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedRows.size === sortedRows.length && sortedRows.length > 0) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(sortedRows.map(row => row.id)));
+    }
+  };
+
+  const batchDelete = () => {
+    if (selectedRows.size === 0) {
+      toast.error('請選擇要刪除的資料');
+      return;
+    }
+
+    const updatedRows = table.rows.filter(row => !selectedRows.has(row.id));
+    onUpdateTable({ ...table, rows: updatedRows });
+    setSelectedRows(new Set());
+    toast.success(`已刪除 ${selectedRows.size} 筆資料`);
+  };
+
+  const batchEdit = () => {
+    if (selectedRows.size === 0) {
+      toast.error('請選擇要編輯的資料');
+      return;
+    }
+    if (!batchEditColumn) {
+      toast.error('請選擇要編輯的欄位');
+      return;
+    }
+
+    const column = table.columns.find(col => col.id === batchEditColumn);
+    if (!column) return;
+
+    let processedValue = batchEditValue;
+    if (column.type === 'number') {
+      processedValue = parseFloat(batchEditValue) || 0;
+    } else if (column.type === 'boolean') {
+      processedValue = batchEditValue === 'true';
+    }
+
+    const updatedRows = table.rows.map(row =>
+      selectedRows.has(row.id)
+        ? { ...row, [batchEditColumn]: processedValue }
+        : row
+    );
+
+    onUpdateTable({ ...table, rows: updatedRows });
+    setSelectedRows(new Set());
+    setBatchEditColumn('');
+    setBatchEditValue('');
+    setIsBatchEditOpen(false);
+    toast.success(`已更新 ${selectedRows.size} 筆資料`);
+  };
+
+  const batchExport = () => {
+    if (selectedRows.size === 0) {
+      toast.error('請選擇要匯出的資料');
+      return;
+    }
+
+    const selectedRowsData = table.rows.filter(row => selectedRows.has(row.id));
+    const exportData = {
+      tableName: table.name,
+      columns: table.columns,
+      rows: selectedRowsData,
+      exportedAt: new Date().toISOString(),
+      totalRows: selectedRowsData.length
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${table.name}-selected-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`已匯出 ${selectedRows.size} 筆資料`);
+  };
+
+  const batchDuplicate = () => {
+    if (selectedRows.size === 0) {
+      toast.error('請選擇要複製的資料');
+      return;
+    }
+
+    const selectedRowsData = table.rows.filter(row => selectedRows.has(row.id));
+    const duplicatedRows = selectedRowsData.map(row => ({
+      ...row,
+      id: `${Date.now()}-${Math.random()}`,
+    }));
+
+    onUpdateTable({
+      ...table,
+      rows: [...table.rows, ...duplicatedRows]
+    });
+
+    setSelectedRows(new Set());
+    toast.success(`已複製 ${selectedRowsData.length} 筆資料`);
   };
 
   const filteredRows = table.rows.filter(row => {
@@ -643,6 +759,135 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
         )}
       </div>
 
+      {/* 批量操作工具列 */}
+      {selectedRows.size > 0 && (
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-primary">
+                已選擇 {selectedRows.size} 筆資料
+              </span>
+              <div className="flex items-center gap-2">
+                <Dialog open={isBatchEditOpen} onOpenChange={setIsBatchEditOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Pencil className="w-4 h-4 mr-2" />
+                      批量編輯
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>批量編輯資料</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>選擇要編輯的欄位</Label>
+                        <Select value={batchEditColumn} onValueChange={setBatchEditColumn}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="選擇欄位" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {table.columns.map(column => (
+                              <SelectItem key={column.id} value={column.id}>
+                                {column.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {batchEditColumn && (
+                        <div>
+                          <Label>新值</Label>
+                          {(() => {
+                            const column = table.columns.find(col => col.id === batchEditColumn);
+                            if (!column) return null;
+
+                            if (column.type === 'boolean') {
+                              return (
+                                <Select value={batchEditValue} onValueChange={setBatchEditValue}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="選擇值" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="true">是</SelectItem>
+                                    <SelectItem value="false">否</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              );
+                            } else if (column.type === 'select' && column.options) {
+                              return (
+                                <Select value={batchEditValue} onValueChange={setBatchEditValue}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="選擇選項" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {column.options.map(option => (
+                                      <SelectItem key={option} value={option}>
+                                        {option}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              );
+                            } else {
+                              return (
+                                <Input
+                                  value={batchEditValue}
+                                  onChange={(e) => setBatchEditValue(e.target.value)}
+                                  placeholder="輸入新值"
+                                  type={
+                                    column.type === 'number' ? 'number' :
+                                    column.type === 'date' ? 'date' :
+                                    column.type === 'email' ? 'email' :
+                                    column.type === 'phone' ? 'tel' :
+                                    column.type === 'url' ? 'url' : 'text'
+                                  }
+                                />
+                              );
+                            }
+                          })()}
+                        </div>
+                      )}
+                      <div className="flex gap-2 pt-2">
+                        <Button onClick={() => setIsBatchEditOpen(false)} variant="outline" className="flex-1">
+                          取消
+                        </Button>
+                        <Button onClick={batchEdit} className="flex-1" disabled={!batchEditColumn}>
+                          套用變更
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                <Button variant="outline" size="sm" onClick={batchDuplicate}>
+                  <Copy className="w-4 h-4 mr-2" />
+                  複製
+                </Button>
+
+                <Button variant="outline" size="sm" onClick={batchExport}>
+                  <Download className="w-4 h-4 mr-2" />
+                  匯出選中
+                </Button>
+
+                <Button variant="destructive" size="sm" onClick={batchDelete}>
+                  <Trash className="w-4 h-4 mr-2" />
+                  刪除選中
+                </Button>
+              </div>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setSelectedRows(new Set())}
+            >
+              <X className="w-4 h-4 mr-2" />
+              取消選擇
+            </Button>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Button onClick={addRow} size="sm">
@@ -741,6 +986,25 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
             <table className="w-full">
               <thead className="bg-muted/50">
                 <tr>
+                  <th className="w-12 p-3">
+                    <div className="flex items-center justify-center">
+                      <button
+                        onClick={toggleSelectAll}
+                        className="p-1 hover:bg-muted rounded"
+                        title={selectedRows.size === sortedRows.length && sortedRows.length > 0 ? "取消全選" : "全選"}
+                      >
+                        {selectedRows.size === sortedRows.length && sortedRows.length > 0 ? (
+                          <CheckSquare className="w-4 h-4 text-primary" />
+                        ) : selectedRows.size > 0 ? (
+                          <div className="w-4 h-4 bg-primary/20 border-2 border-primary rounded flex items-center justify-center">
+                            <div className="w-2 h-2 bg-primary rounded-sm" />
+                          </div>
+                        ) : (
+                          <Square className="w-4 h-4 text-muted-foreground" />
+                        )}
+                      </button>
+                    </div>
+                  </th>
                   <SortableContext items={table.columns.map(col => col.id)} strategy={horizontalListSortingStrategy}>
                     {table.columns.map((column) => (
                       <SortableHeader
@@ -758,7 +1022,21 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
               </thead>
               <tbody>
                 {sortedRows.map((row) => (
-                  <tr key={row.id} className="border-t border-border hover:bg-muted/25 transition-colors">
+                  <tr key={row.id} className="border-t border-border hover:bg-muted/25 transition-colors group">
+                    <td className="p-2">
+                      <div className="flex items-center justify-center">
+                        <button
+                          onClick={() => toggleRowSelection(row.id)}
+                          className="p-1 hover:bg-muted rounded"
+                        >
+                          {selectedRows.has(row.id) ? (
+                            <CheckSquare className="w-4 h-4 text-primary" />
+                          ) : (
+                            <Square className="w-4 h-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                          )}
+                        </button>
+                      </div>
+                    </td>
                     {table.columns.map((column) => (
                       <td key={column.id} className="border-r border-border last:border-r-0">
                         {renderCell(row, column)}
@@ -778,7 +1056,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                 ))}
                 {sortedRows.length === 0 && table.rows.length > 0 ? (
                   <tr>
-                    <td colSpan={table.columns.length + 1} className="p-8 text-center text-muted-foreground">
+                    <td colSpan={table.columns.length + 2} className="p-8 text-center text-muted-foreground">
                       <div className="space-y-2">
                         <MagnifyingGlass className="w-8 h-8 mx-auto text-muted-foreground/50" />
                         <p>找不到符合條件的資料</p>
@@ -790,7 +1068,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                   </tr>
                 ) : sortedRows.length === 0 ? (
                   <tr>
-                    <td colSpan={table.columns.length + 1} className="p-8 text-center text-muted-foreground">
+                    <td colSpan={table.columns.length + 2} className="p-8 text-center text-muted-foreground">
                       尚無資料。點擊「新增行」開始輸入資料。
                     </td>
                   </tr>

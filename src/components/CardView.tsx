@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash, File, Link, Envelope, Phone, MagnifyingGlass, Funnel, X } from '@phosphor-icons/react';
+import { Plus, Pencil, Trash, File, Link, Envelope, Phone, MagnifyingGlass, Funnel, X, CheckSquare, Square, Download, Copy } from '@phosphor-icons/react';
 import { Table, Row } from '@/types';
 import { toast } from 'sonner';
 
@@ -23,6 +23,10 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<{ [columnId: string]: string }>({});
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
+  const [batchEditColumn, setBatchEditColumn] = useState('');
+  const [batchEditValue, setBatchEditValue] = useState('');
 
   const startEditRow = (row: Row) => {
     setEditingRow(row.id);
@@ -109,6 +113,118 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
   const clearFilters = () => {
     setFilters({});
     setSearchTerm('');
+  };
+
+  // 批量操作函數
+  const toggleRowSelection = (rowId: string) => {
+    const newSelected = new Set(selectedRows);
+    if (newSelected.has(rowId)) {
+      newSelected.delete(rowId);
+    } else {
+      newSelected.add(rowId);
+    }
+    setSelectedRows(newSelected);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedRows.size === filteredRows.length && filteredRows.length > 0) {
+      setSelectedRows(new Set());
+    } else {
+      setSelectedRows(new Set(filteredRows.map(row => row.id)));
+    }
+  };
+
+  const batchDelete = () => {
+    if (selectedRows.size === 0) {
+      toast.error('請選擇要刪除的資料');
+      return;
+    }
+
+    const updatedRows = table.rows.filter(row => !selectedRows.has(row.id));
+    onUpdateTable({ ...table, rows: updatedRows });
+    setSelectedRows(new Set());
+    toast.success(`已刪除 ${selectedRows.size} 筆資料`);
+  };
+
+  const batchEdit = () => {
+    if (selectedRows.size === 0) {
+      toast.error('請選擇要編輯的資料');
+      return;
+    }
+    if (!batchEditColumn) {
+      toast.error('請選擇要編輯的欄位');
+      return;
+    }
+
+    const column = table.columns.find(col => col.id === batchEditColumn);
+    if (!column) return;
+
+    let processedValue = batchEditValue;
+    if (column.type === 'number') {
+      processedValue = parseFloat(batchEditValue) || 0;
+    } else if (column.type === 'boolean') {
+      processedValue = batchEditValue === 'true';
+    }
+
+    const updatedRows = table.rows.map(row =>
+      selectedRows.has(row.id)
+        ? { ...row, [batchEditColumn]: processedValue }
+        : row
+    );
+
+    onUpdateTable({ ...table, rows: updatedRows });
+    setSelectedRows(new Set());
+    setBatchEditColumn('');
+    setBatchEditValue('');
+    setIsBatchEditOpen(false);
+    toast.success(`已更新 ${selectedRows.size} 筆資料`);
+  };
+
+  const batchExport = () => {
+    if (selectedRows.size === 0) {
+      toast.error('請選擇要匯出的資料');
+      return;
+    }
+
+    const selectedRowsData = table.rows.filter(row => selectedRows.has(row.id));
+    const exportData = {
+      tableName: table.name,
+      columns: table.columns,
+      rows: selectedRowsData,
+      exportedAt: new Date().toISOString(),
+      totalRows: selectedRowsData.length
+    };
+
+    const dataStr = JSON.stringify(exportData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${table.name}-selected-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success(`已匯出 ${selectedRows.size} 筆資料`);
+  };
+
+  const batchDuplicate = () => {
+    if (selectedRows.size === 0) {
+      toast.error('請選擇要複製的資料');
+      return;
+    }
+
+    const selectedRowsData = table.rows.filter(row => selectedRows.has(row.id));
+    const duplicatedRows = selectedRowsData.map(row => ({
+      ...row,
+      id: `${Date.now()}-${Math.random()}`,
+    }));
+
+    onUpdateTable({
+      ...table,
+      rows: [...table.rows, ...duplicatedRows]
+    });
+
+    setSelectedRows(new Set());
+    toast.success(`已複製 ${selectedRowsData.length} 筆資料`);
   };
 
   const filteredRows = table.rows.filter(row => {
@@ -455,39 +571,190 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
         )}
       </div>
 
-      <div className="flex items-center justify-between">
-        <Dialog open={isAddRowOpen} onOpenChange={setIsAddRowOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="w-4 h-4 mr-2" />
-              新增行
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>新增行</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              {table.columns.map((column) => (
-                <div key={column.id}>
-                  {renderFieldInput(
-                    column,
-                    newRowValues[column.id],
-                    (value) => setNewRowValues({ ...newRowValues, [column.id]: value })
-                  )}
-                </div>
-              ))}
-              <div className="flex gap-2 pt-4">
-                <Button onClick={addNewRow} className="flex-1">
-                  新增行
+      {/* 批量操作工具列 */}
+      {selectedRows.size > 0 && (
+        <div className="bg-primary/10 border border-primary/20 rounded-lg p-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <span className="text-sm font-medium text-primary">
+                已選擇 {selectedRows.size} 筆資料
+              </span>
+              <div className="flex items-center gap-2">
+                <Dialog open={isBatchEditOpen} onOpenChange={setIsBatchEditOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm">
+                      <Pencil className="w-4 h-4 mr-2" />
+                      批量編輯
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>批量編輯資料</DialogTitle>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <div>
+                        <Label>選擇要編輯的欄位</Label>
+                        <Select value={batchEditColumn} onValueChange={setBatchEditColumn}>
+                          <SelectTrigger>
+                            <SelectValue placeholder="選擇欄位" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {table.columns.map(column => (
+                              <SelectItem key={column.id} value={column.id}>
+                                {column.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      {batchEditColumn && (
+                        <div>
+                          <Label>新值</Label>
+                          {(() => {
+                            const column = table.columns.find(col => col.id === batchEditColumn);
+                            if (!column) return null;
+
+                            if (column.type === 'boolean') {
+                              return (
+                                <Select value={batchEditValue} onValueChange={setBatchEditValue}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="選擇值" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    <SelectItem value="true">是</SelectItem>
+                                    <SelectItem value="false">否</SelectItem>
+                                  </SelectContent>
+                                </Select>
+                              );
+                            } else if (column.type === 'select' && column.options) {
+                              return (
+                                <Select value={batchEditValue} onValueChange={setBatchEditValue}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="選擇選項" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {column.options.map(option => (
+                                      <SelectItem key={option} value={option}>
+                                        {option}
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                              );
+                            } else {
+                              return (
+                                <Input
+                                  value={batchEditValue}
+                                  onChange={(e) => setBatchEditValue(e.target.value)}
+                                  placeholder="輸入新值"
+                                  type={
+                                    column.type === 'number' ? 'number' :
+                                    column.type === 'date' ? 'date' :
+                                    column.type === 'email' ? 'email' :
+                                    column.type === 'phone' ? 'tel' :
+                                    column.type === 'url' ? 'url' : 'text'
+                                  }
+                                />
+                              );
+                            }
+                          })()}
+                        </div>
+                      )}
+                      <div className="flex gap-2 pt-2">
+                        <Button onClick={() => setIsBatchEditOpen(false)} variant="outline" className="flex-1">
+                          取消
+                        </Button>
+                        <Button onClick={batchEdit} className="flex-1" disabled={!batchEditColumn}>
+                          套用變更
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+
+                <Button variant="outline" size="sm" onClick={batchDuplicate}>
+                  <Copy className="w-4 h-4 mr-2" />
+                  複製
                 </Button>
-                <Button variant="outline" onClick={() => setIsAddRowOpen(false)} className="flex-1">
-                  取消
+
+                <Button variant="outline" size="sm" onClick={batchExport}>
+                  <Download className="w-4 h-4 mr-2" />
+                  匯出選中
+                </Button>
+
+                <Button variant="destructive" size="sm" onClick={batchDelete}>
+                  <Trash className="w-4 h-4 mr-2" />
+                  刪除選中
                 </Button>
               </div>
             </div>
-          </DialogContent>
-        </Dialog>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => setSelectedRows(new Set())}
+            >
+              <X className="w-4 h-4 mr-2" />
+              取消選擇
+            </Button>
+          </div>
+        </div>
+      )}
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Dialog open={isAddRowOpen} onOpenChange={setIsAddRowOpen}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="w-4 h-4 mr-2" />
+                新增行
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+              <DialogHeader>
+                <DialogTitle>新增行</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                {table.columns.map((column) => (
+                  <div key={column.id}>
+                    {renderFieldInput(
+                      column,
+                      newRowValues[column.id],
+                      (value) => setNewRowValues({ ...newRowValues, [column.id]: value })
+                    )}
+                  </div>
+                ))}
+                <div className="flex gap-2 pt-4">
+                  <Button onClick={addNewRow} className="flex-1">
+                    新增行
+                  </Button>
+                  <Button variant="outline" onClick={() => setIsAddRowOpen(false)} className="flex-1">
+                    取消
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {filteredRows.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleSelectAll}
+            >
+              {selectedRows.size === filteredRows.length && filteredRows.length > 0 ? (
+                <>
+                  <CheckSquare className="w-4 h-4 mr-2" />
+                  取消全選
+                </>
+              ) : (
+                <>
+                  <Square className="w-4 h-4 mr-2" />
+                  全選
+                </>
+              )}
+            </Button>
+          )}
+        </div>
         
         <span className="text-sm text-muted-foreground">
           顯示 {filteredRows.length} / {table.rows.length} 筆資料
@@ -515,12 +782,24 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {filteredRows.map((row) => (
-            <Card key={row.id} className="relative group">
+            <Card key={row.id} className={`relative group transition-all ${selectedRows.has(row.id) ? 'ring-2 ring-primary bg-primary/5' : ''}`}>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">
-                    {String(row[table.columns[0]?.id] || '未命名')}
-                  </CardTitle>
+                  <div className="flex items-center gap-2 flex-1">
+                    <button
+                      onClick={() => toggleRowSelection(row.id)}
+                      className="p-1 hover:bg-muted rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      {selectedRows.has(row.id) ? (
+                        <CheckSquare className="w-4 h-4 text-primary" />
+                      ) : (
+                        <Square className="w-4 h-4 text-muted-foreground" />
+                      )}
+                    </button>
+                    <CardTitle className="text-base">
+                      {String(row[table.columns[0]?.id] || '未命名')}
+                    </CardTitle>
+                  </div>
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     {editingRow === row.id ? (
                       <>
