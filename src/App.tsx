@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Table as TableIcon, LayoutGrid, Download } from '@phosphor-icons/react';
+import { Plus, Table as TableIcon, SquaresFour, Download } from '@phosphor-icons/react';
 import { toast, Toaster } from 'sonner';
 import { Table, ViewMode } from '@/types';
 import { TableManager } from '@/components/TableManager';
@@ -111,7 +111,7 @@ function App() {
   const [newTableName, setNewTableName] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
-  const activeTable = tables.find(table => table.id === activeTableId);
+  const activeTable = tables?.find(table => table.id === activeTableId);
 
   const createTable = () => {
     if (!newTableName.trim()) {
@@ -143,7 +143,7 @@ function App() {
       ]
     };
 
-    setTables(currentTables => [...currentTables, newTable]);
+    setTables(currentTables => currentTables ? [...currentTables, newTable] : [newTable]);
     setActiveTableId(newTable.id);
     setNewTableName('');
     setIsCreateDialogOpen(false);
@@ -151,7 +151,7 @@ function App() {
   };
 
   const deleteTable = (tableId: string) => {
-    setTables(currentTables => currentTables.filter(table => table.id !== tableId));
+    setTables(currentTables => currentTables ? currentTables.filter(table => table.id !== tableId) : []);
     if (activeTableId === tableId) {
       setActiveTableId(null);
     }
@@ -160,9 +160,9 @@ function App() {
 
   const updateTable = (updatedTable: Table) => {
     setTables(currentTables => 
-      currentTables.map(table => 
+      currentTables ? currentTables.map(table => 
         table.id === updatedTable.id ? updatedTable : table
-      )
+      ) : [updatedTable]
     );
   };
 
@@ -226,7 +226,7 @@ function App() {
             </Dialog>
 
             <TableManager
-              tables={tables}
+              tables={tables || []}
               activeTableId={activeTableId}
               onSelectTable={setActiveTableId}
               onDeleteTable={deleteTable}
@@ -254,7 +254,7 @@ function App() {
                           <TableIcon className="w-4 h-4" />
                         </TabsTrigger>
                         <TabsTrigger value="card">
-                          <LayoutGrid className="w-4 h-4" />
+                          <SquaresFour className="w-4 h-4" />
                         </TabsTrigger>
                       </TabsList>
                     </Tabs>

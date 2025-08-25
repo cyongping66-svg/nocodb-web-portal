@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Pencil, Trash, ArrowUp, ArrowDown, GripVertical, Link, File, Envelope, Phone, MagnifyingGlass, Funnel, X, CheckSquare, Square, Download, Copy } from '@phosphor-icons/react';
+import { Plus, Pencil, Trash, ArrowUp, ArrowDown, DotsSixVertical, Link, File, Envelope, Phone, MagnifyingGlass, Funnel, X, CheckSquare, Square, Download, Copy } from '@phosphor-icons/react';
 import { Table, Column, Row } from '@/types';
 import { toast } from 'sonner';
 import {
@@ -27,6 +27,32 @@ import {
 import {
   CSS,
 } from '@dnd-kit/utilities';
+
+// 為選項生成一致的顏色
+const getOptionColor = (option: string, index: number) => {
+  const colors = [
+    'bg-blue-100 text-blue-800 border-blue-200',
+    'bg-green-100 text-green-800 border-green-200', 
+    'bg-purple-100 text-purple-800 border-purple-200',
+    'bg-orange-100 text-orange-800 border-orange-200',
+    'bg-pink-100 text-pink-800 border-pink-200',
+    'bg-cyan-100 text-cyan-800 border-cyan-200',
+    'bg-yellow-100 text-yellow-800 border-yellow-200',
+    'bg-indigo-100 text-indigo-800 border-indigo-200',
+    'bg-red-100 text-red-800 border-red-200',
+    'bg-emerald-100 text-emerald-800 border-emerald-200'
+  ];
+  
+  // 使用選項字串的哈希值來確保相同選項總是得到相同顏色
+  let hash = 0;
+  for (let i = 0; i < option.length; i++) {
+    const char = option.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // 轉換為32位整數
+  }
+  
+  return colors[Math.abs(hash) % colors.length];
+};
 
 interface DataTableProps {
   table: Table;
@@ -101,7 +127,7 @@ function SortableHeader({ column, sortConfig, onSort, onDelete, onUpdateColumn }
             {...attributes}
             {...listeners}
           >
-            <GripVertical className="w-3 h-3 text-muted-foreground" />
+            <DotsSixVertical className="w-3 h-3 text-muted-foreground" />
           </button>
           
           {isEditing ? (
@@ -233,9 +259,9 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
 
   const deleteColumn = (columnId: string) => {
     const updatedColumns = table.columns.filter(col => col.id !== columnId);
-    const updatedRows = table.rows.map(row => {
+    const updatedRows: Row[] = table.rows.map(row => {
       const { [columnId]: deleted, ...rest } = row;
-      return rest;
+      return rest as Row;
     });
 
     onUpdateTable({
@@ -272,7 +298,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
 
     onUpdateTable({
       ...table,
-      rows: [...table.rows, newRow]
+      rows: [...table.rows, newRow] as Row[]
     });
   };
 
@@ -294,14 +320,14 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
     const column = table.columns.find(col => col.id === editingCell.columnId);
     if (!column) return;
 
-    let processedValue = editValue;
+    let processedValue: any = editValue;
     if (column.type === 'number') {
       processedValue = parseFloat(editValue) || 0;
     } else if (column.type === 'boolean') {
       processedValue = editValue === 'true';
     }
 
-    const updatedRows = table.rows.map(row =>
+    const updatedRows: Row[] = table.rows.map(row =>
       row.id === editingCell.rowId
         ? { ...row, [editingCell.columnId]: processedValue }
         : row
@@ -323,7 +349,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
       lastModified: file.lastModified
     };
 
-    const updatedRows = table.rows.map(row =>
+    const updatedRows: Row[] = table.rows.map(row =>
       row.id === rowId
         ? { ...row, [columnId]: fileData }
         : row
@@ -376,7 +402,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
       return;
     }
 
-    const updatedRows = table.rows.filter(row => !selectedRows.has(row.id));
+    const updatedRows: Row[] = table.rows.filter(row => !selectedRows.has(row.id));
     onUpdateTable({ ...table, rows: updatedRows });
     setSelectedRows(new Set());
     toast.success(`已刪除 ${selectedRows.size} 筆資料`);
@@ -395,14 +421,14 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
     const column = table.columns.find(col => col.id === batchEditColumn);
     if (!column) return;
 
-    let processedValue = batchEditValue;
+    let processedValue: any = batchEditValue;
     if (column.type === 'number') {
       processedValue = parseFloat(batchEditValue) || 0;
     } else if (column.type === 'boolean') {
       processedValue = batchEditValue === 'true';
     }
 
-    const updatedRows = table.rows.map(row =>
+    const updatedRows: Row[] = table.rows.map(row =>
       selectedRows.has(row.id)
         ? { ...row, [batchEditColumn]: processedValue }
         : row
@@ -449,7 +475,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
     }
 
     const selectedRowsData = table.rows.filter(row => selectedRows.has(row.id));
-    const duplicatedRows = selectedRowsData.map(row => ({
+    const duplicatedRows: Row[] = selectedRowsData.map(row => ({
       ...row,
       id: `${Date.now()}-${Math.random()}`,
     }));
@@ -477,16 +503,63 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
     }
 
     // 欄位篩選
-    return Object.entries(filters).every(([columnId, filterValue]) => {
+    return Object.entries(filters).every(([filterKey, filterValue]) => {
       if (!filterValue) return true;
-      const cellValue = row[columnId];
       
-      if (cellValue && typeof cellValue === 'object' && cellValue.name) {
-        // 對於檔案類型，篩選檔案名稱
-        return cellValue.name.toLowerCase().includes(filterValue.toLowerCase());
+      // 檢查是否為範圍篩選（數字或日期）
+      if (filterKey.endsWith('_min') || filterKey.endsWith('_max') || 
+          filterKey.endsWith('_start') || filterKey.endsWith('_end')) {
+        const columnId = filterKey.replace(/_min|_max|_start|_end$/, '');
+        const column = table.columns.find(col => col.id === columnId);
+        const cellValue = row[columnId];
+        
+        if (!column || cellValue === null || cellValue === undefined) return true;
+        
+        if (column.type === 'number') {
+          const numValue = parseFloat(cellValue);
+          if (isNaN(numValue)) return true;
+          
+          if (filterKey.endsWith('_min')) {
+            const minValue = parseFloat(filterValue);
+            return isNaN(minValue) || numValue >= minValue;
+          } else if (filterKey.endsWith('_max')) {
+            const maxValue = parseFloat(filterValue);
+            return isNaN(maxValue) || numValue <= maxValue;
+          }
+        } else if (column.type === 'date') {
+          const dateValue = new Date(cellValue);
+          const filterDate = new Date(filterValue);
+          
+          if (isNaN(dateValue.getTime()) || isNaN(filterDate.getTime())) return true;
+          
+          if (filterKey.endsWith('_start')) {
+            return dateValue >= filterDate;
+          } else if (filterKey.endsWith('_end')) {
+            return dateValue <= filterDate;
+          }
+        }
+        
+        return true;
       }
       
-      return String(cellValue || '').toLowerCase().includes(filterValue.toLowerCase());
+      // 一般篩選
+      const cellValue = row[filterKey];
+      const column = table.columns.find(col => col.id === filterKey);
+      
+      if (!column) return true;
+      
+      if (column.type === 'boolean') {
+        return String(cellValue) === filterValue;
+      } else if (column.type === 'select') {
+        return cellValue === filterValue;
+      } else {
+        // 文字類型篩選
+        if (cellValue && typeof cellValue === 'object' && cellValue.name) {
+          // 對於檔案類型，篩選檔案名稱
+          return cellValue.name.toLowerCase().includes(filterValue.toLowerCase());
+        }
+        return String(cellValue || '').toLowerCase().includes(filterValue.toLowerCase());
+      }
     });
   });
 
@@ -523,8 +596,13 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {column.options.map(option => (
-                <SelectItem key={option} value={option}>{option}</SelectItem>
+              {column.options.map((option, index) => (
+                <SelectItem key={option} value={option}>
+                  <div className="flex items-center gap-2">
+                    <div className={`w-3 h-3 rounded border ${getOptionColor(option, index)}`} />
+                    {option}
+                  </div>
+                </SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -571,7 +649,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
     // Display logic for different column types
     const renderCellContent = () => {
       if (column.type === 'boolean') {
-        return <Checkbox checked={Boolean(value)} readOnly />;
+        return <Checkbox checked={Boolean(value)} disabled />;
       } else if (column.type === 'file' && value) {
         return (
           <div className="flex items-center gap-2 text-sm">
@@ -627,6 +705,16 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
               {value}
             </a>
           </div>
+        );
+      } else if (column.type === 'select' && value && column.options) {
+        // 為選項類型添加顏色標籤
+        const optionIndex = column.options.indexOf(value);
+        const colorClass = getOptionColor(value, optionIndex);
+        
+        return (
+          <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${colorClass}`}>
+            {value}
+          </span>
         );
       } else {
         return <span className="text-sm">{String(value || '')}</span>;
@@ -690,15 +778,122 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                 {table.columns.map((column) => (
                   <div key={column.id}>
                     <Label htmlFor={`filter-${column.id}`}>{column.name}</Label>
-                    <Input
-                      id={`filter-${column.id}`}
-                      placeholder={`篩選 ${column.name}...`}
-                      value={filters[column.id] || ''}
-                      onChange={(e) => setFilters(prev => ({
-                        ...prev,
-                        [column.id]: e.target.value
-                      }))}
-                    />
+                    {(() => {
+                      // 根據欄位類型提供不同的篩選控制項
+                      if (column.type === 'boolean') {
+                        return (
+                          <Select 
+                            value={filters[column.id] || ''} 
+                            onValueChange={(value) => setFilters(prev => ({
+                              ...prev,
+                              [column.id]: value
+                            }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="選擇布林值" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">全部</SelectItem>
+                              <SelectItem value="true">是</SelectItem>
+                              <SelectItem value="false">否</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        );
+                      } else if (column.type === 'select' && column.options) {
+                        return (
+                          <Select 
+                            value={filters[column.id] || ''} 
+                            onValueChange={(value) => setFilters(prev => ({
+                              ...prev,
+                              [column.id]: value
+                            }))}
+                          >
+                            <SelectTrigger>
+                              <SelectValue placeholder="選擇選項" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="">全部</SelectItem>
+                              {column.options.map((option, index) => (
+                                <SelectItem key={option} value={option}>
+                                  <div className="flex items-center gap-2">
+                                    <div className={`w-3 h-3 rounded-full border ${getOptionColor(option, index)}`} />
+                                    {option}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        );
+                      } else if (column.type === 'number') {
+                        return (
+                          <div className="flex gap-2">
+                            <Input
+                              type="number"
+                              placeholder="最小值"
+                              value={filters[`${column.id}_min`] || ''}
+                              onChange={(e) => setFilters(prev => ({
+                                ...prev,
+                                [`${column.id}_min`]: e.target.value
+                              }))}
+                              className="flex-1"
+                            />
+                            <Input
+                              type="number" 
+                              placeholder="最大值"
+                              value={filters[`${column.id}_max`] || ''}
+                              onChange={(e) => setFilters(prev => ({
+                                ...prev,
+                                [`${column.id}_max`]: e.target.value
+                              }))}
+                              className="flex-1"
+                            />
+                          </div>
+                        );
+                      } else if (column.type === 'date') {
+                        return (
+                          <div className="flex gap-2">
+                            <Input
+                              type="date"
+                              placeholder="起始日期"
+                              value={filters[`${column.id}_start`] || ''}
+                              onChange={(e) => setFilters(prev => ({
+                                ...prev,
+                                [`${column.id}_start`]: e.target.value
+                              }))}
+                              className="flex-1"
+                            />
+                            <Input
+                              type="date"
+                              placeholder="結束日期"
+                              value={filters[`${column.id}_end`] || ''}
+                              onChange={(e) => setFilters(prev => ({
+                                ...prev,
+                                [`${column.id}_end`]: e.target.value
+                              }))}
+                              className="flex-1"
+                            />
+                          </div>
+                        );
+                      } else {
+                        // 預設為文字搜尋（適用於 text, email, phone, url, file）
+                        return (
+                          <Input
+                            id={`filter-${column.id}`}
+                            placeholder={`篩選 ${column.name}...`}
+                            value={filters[column.id] || ''}
+                            onChange={(e) => setFilters(prev => ({
+                              ...prev,
+                              [column.id]: e.target.value
+                            }))}
+                            type={
+                              column.type === 'email' ? 'email' :
+                              column.type === 'phone' ? 'tel' :
+                              column.type === 'url' ? 'url' : 'text'
+                            }
+                          />
+                        );
+                      }
+                    })()}
                   </div>
                 ))}
                 <div className="flex gap-2 pt-2">
@@ -738,22 +933,84 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                 </Button>
               </span>
             )}
-            {Object.entries(filters).map(([columnId, value]) => {
+            {Object.entries(filters).map(([filterKey, value]) => {
               if (!value) return null;
-              const column = table.columns.find(col => col.id === columnId);
-              return (
-                <span key={columnId} className="bg-muted px-2 py-1 rounded flex items-center gap-1">
-                  {column?.name}: "{value}"
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="p-0 h-auto ml-1"
-                    onClick={() => setFilters(prev => ({ ...prev, [columnId]: '' }))}
-                  >
-                    <X className="w-3 h-3" />
-                  </Button>
-                </span>
-              );
+              
+              // 處理範圍篩選的顯示
+              if (filterKey.endsWith('_min') || filterKey.endsWith('_start')) {
+                const columnId = filterKey.replace(/_min|_start$/, '');
+                const column = table.columns.find(col => col.id === columnId);
+                const maxKey = filterKey.replace(/_min$/, '_max').replace(/_start$/, '_end');
+                const maxValue = filters[maxKey];
+                
+                if (!column) return null;
+                
+                const label = filterKey.endsWith('_min') ? '最小' : '起始';
+                const rangeLabel = maxValue ? ` - ${maxValue}` : '';
+                
+                return (
+                  <span key={filterKey} className="bg-muted px-2 py-1 rounded flex items-center gap-1">
+                    {column.name} {label}: {value}{rangeLabel}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="p-0 h-auto ml-1"
+                      onClick={() => {
+                        setFilters(prev => {
+                          const newFilters = { ...prev };
+                          delete newFilters[filterKey];
+                          if (maxValue) delete newFilters[maxKey];
+                          return newFilters;
+                        });
+                      }}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </span>
+                );
+              } else if (filterKey.endsWith('_max') || filterKey.endsWith('_end')) {
+                // 跳過 max/end 標籤，因為它們已經在 min/start 中處理了
+                const minKey = filterKey.replace(/_max$/, '_min').replace(/_end$/, '_start');
+                if (filters[minKey]) return null;
+                
+                const columnId = filterKey.replace(/_max|_end$/, '');
+                const column = table.columns.find(col => col.id === columnId);
+                if (!column) return null;
+                
+                const label = filterKey.endsWith('_max') ? '最大' : '結束';
+                
+                return (
+                  <span key={filterKey} className="bg-muted px-2 py-1 rounded flex items-center gap-1">
+                    {column.name} {label}: {value}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="p-0 h-auto ml-1"
+                      onClick={() => setFilters(prev => ({ ...prev, [filterKey]: '' }))}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </span>
+                );
+              } else {
+                // 一般篩選
+                const column = table.columns.find(col => col.id === filterKey);
+                if (!column) return null;
+                
+                return (
+                  <span key={filterKey} className="bg-muted px-2 py-1 rounded flex items-center gap-1">
+                    {column.name}: "{value}"
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="p-0 h-auto ml-1"
+                      onClick={() => setFilters(prev => ({ ...prev, [filterKey]: '' }))}
+                    >
+                      <X className="w-3 h-3" />
+                    </Button>
+                  </span>
+                );
+              }
             })}
           </div>
         )}
@@ -821,9 +1078,12 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                                     <SelectValue placeholder="選擇選項" />
                                   </SelectTrigger>
                                   <SelectContent>
-                                    {column.options.map(option => (
+                                    {column.options.map((option, index) => (
                                       <SelectItem key={option} value={option}>
-                                        {option}
+                                        <div className="flex items-center gap-2">
+                                          <div className={`w-3 h-3 rounded border ${getOptionColor(option, index)}`} />
+                                          {option}
+                                        </div>
                                       </SelectItem>
                                     ))}
                                   </SelectContent>
