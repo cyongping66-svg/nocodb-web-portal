@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash, File, Link, Envelope, Phone } from '@phosphor-icons/react';
+import { Plus, Pencil, Trash, File, Link, Envelope, Phone, MagnifyingGlass, Funnel, X } from '@phosphor-icons/react';
 import { Table, Row } from '@/types';
 import { toast } from 'sonner';
 
@@ -20,6 +20,9 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
   const [editValues, setEditValues] = useState<Record<string, any>>({});
   const [isAddRowOpen, setIsAddRowOpen] = useState(false);
   const [newRowValues, setNewRowValues] = useState<Record<string, any>>({});
+  const [searchTerm, setSearchTerm] = useState('');
+  const [filters, setFilters] = useState<{ [columnId: string]: string }>({});
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const startEditRow = (row: Row) => {
     setEditingRow(row.id);
@@ -102,6 +105,38 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
     onChange(fileData);
     toast.success('檔案上傳成功');
   };
+
+  const clearFilters = () => {
+    setFilters({});
+    setSearchTerm('');
+  };
+
+  const filteredRows = table.rows.filter(row => {
+    // 搜尋篩選
+    if (searchTerm) {
+      const searchMatch = Object.values(row).some(value => {
+        if (value && typeof value === 'object' && value.name) {
+          // 對於檔案類型，搜尋檔案名稱
+          return value.name.toLowerCase().includes(searchTerm.toLowerCase());
+        }
+        return String(value || '').toLowerCase().includes(searchTerm.toLowerCase());
+      });
+      if (!searchMatch) return false;
+    }
+
+    // 欄位篩選
+    return Object.entries(filters).every(([columnId, filterValue]) => {
+      if (!filterValue) return true;
+      const cellValue = row[columnId];
+      
+      if (cellValue && typeof cellValue === 'object' && cellValue.name) {
+        // 對於檔案類型，篩選檔案名稱
+        return cellValue.name.toLowerCase().includes(filterValue.toLowerCase());
+      }
+      
+      return String(cellValue || '').toLowerCase().includes(filterValue.toLowerCase());
+    });
+  });
 
   const renderFieldInput = (column: any, value: any, onChange: (value: any) => void, isEditing = false) => {
     const inputId = `${column.id}-${isEditing ? 'edit' : 'new'}`;
@@ -306,6 +341,120 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
 
   return (
     <div className="space-y-4">
+      {/* 搜尋和篩選區域 */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          {/* 搜尋框 */}
+          <div className="relative flex-1 max-w-sm">
+            <MagnifyingGlass className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="搜尋所有欄位..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+            {searchTerm && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 p-1 h-auto"
+                onClick={() => setSearchTerm('')}
+              >
+                <X className="w-3 h-3" />
+              </Button>
+            )}
+          </div>
+
+          {/* 篩選按鈕 */}
+          <Dialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Funnel className="w-4 h-4 mr-2" />
+                篩選
+                {Object.values(filters).filter(Boolean).length > 0 && (
+                  <span className="ml-1 bg-primary text-primary-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center">
+                    {Object.values(filters).filter(Boolean).length}
+                  </span>
+                )}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg">
+              <DialogHeader>
+                <DialogTitle>進階篩選</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                {table.columns.map((column) => (
+                  <div key={column.id}>
+                    <Label htmlFor={`filter-${column.id}`}>{column.name}</Label>
+                    <Input
+                      id={`filter-${column.id}`}
+                      placeholder={`篩選 ${column.name}...`}
+                      value={filters[column.id] || ''}
+                      onChange={(e) => setFilters(prev => ({
+                        ...prev,
+                        [column.id]: e.target.value
+                      }))}
+                    />
+                  </div>
+                ))}
+                <div className="flex gap-2 pt-2">
+                  <Button onClick={clearFilters} variant="outline" className="flex-1">
+                    清除篩選
+                  </Button>
+                  <Button onClick={() => setIsFilterOpen(false)} className="flex-1">
+                    套用篩選
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+
+          {/* 清除所有篩選 */}
+          {(searchTerm || Object.values(filters).some(Boolean)) && (
+            <Button variant="ghost" size="sm" onClick={clearFilters}>
+              <X className="w-4 h-4 mr-2" />
+              清除全部
+            </Button>
+          )}
+        </div>
+
+        {/* 作用中的篩選顯示 */}
+        {(searchTerm || Object.values(filters).some(Boolean)) && (
+          <div className="flex flex-wrap gap-2 text-sm text-muted-foreground">
+            {searchTerm && (
+              <span className="bg-muted px-2 py-1 rounded flex items-center gap-1">
+                搜尋: "{searchTerm}"
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="p-0 h-auto ml-1"
+                  onClick={() => setSearchTerm('')}
+                >
+                  <X className="w-3 h-3" />
+                </Button>
+              </span>
+            )}
+            {Object.entries(filters).map(([columnId, value]) => {
+              if (!value) return null;
+              const column = table.columns.find(col => col.id === columnId);
+              return (
+                <span key={columnId} className="bg-muted px-2 py-1 rounded flex items-center gap-1">
+                  {column?.name}: "{value}"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="p-0 h-auto ml-1"
+                    onClick={() => setFilters(prev => ({ ...prev, [columnId]: '' }))}
+                  >
+                    <X className="w-3 h-3" />
+                  </Button>
+                </span>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
       <div className="flex items-center justify-between">
         <Dialog open={isAddRowOpen} onOpenChange={setIsAddRowOpen}>
           <DialogTrigger asChild>
@@ -341,11 +490,23 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
         </Dialog>
         
         <span className="text-sm text-muted-foreground">
-          {table.rows.length} 筆資料
+          顯示 {filteredRows.length} / {table.rows.length} 筆資料
         </span>
       </div>
 
-      {table.rows.length === 0 ? (
+      {filteredRows.length === 0 && table.rows.length > 0 ? (
+        <Card>
+          <CardContent className="p-8 text-center">
+            <div className="space-y-2">
+              <MagnifyingGlass className="w-8 h-8 mx-auto text-muted-foreground/50" />
+              <p className="text-muted-foreground">找不到符合條件的資料</p>
+              <Button variant="outline" size="sm" onClick={clearFilters}>
+                清除篩選條件
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      ) : filteredRows.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
             <p className="text-muted-foreground">尚無資料。點擊「新增行」開始輸入資料。</p>
@@ -353,7 +514,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
         </Card>
       ) : (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {table.rows.map((row) => (
+          {filteredRows.map((row) => (
             <Card key={row.id} className="relative group">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
