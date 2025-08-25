@@ -172,7 +172,7 @@ function App() {
         {/* Sidebar */}
         <div className="w-64 border-r border-border bg-card">
           <div className="p-4 border-b border-border">
-            <h1 className="text-xl font-bold text-foreground">資料庫建構器</h1>
+            <h1 className="text-xl font-bold text-foreground">孵化之路信息管理系統</h1>
           </div>
           
           <div className="p-4">
@@ -210,6 +210,7 @@ function App() {
               activeTableId={activeTableId}
               onSelectTable={setActiveTableId}
               onDeleteTable={deleteTable}
+              onUpdateTable={updateTable}
             />
           </div>
         </div>
@@ -254,7 +255,7 @@ function App() {
             <div className="flex-1 flex items-center justify-center">
               <Card className="max-w-md">
                 <CardHeader>
-                  <CardTitle className="text-center">歡迎使用資料庫建構器</CardTitle>
+                  <CardTitle className="text-center">歡迎使用孵化之路信息管理系統</CardTitle>
                 </CardHeader>
                 <CardContent className="text-center">
                   <p className="text-muted-foreground mb-4">

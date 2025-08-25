@@ -5,13 +5,93 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Pencil, Trash, ArrowUp, ArrowDown } from '@phosphor-icons/react';
+import { Plus, Pencil, Trash, ArrowUp, ArrowDown, GripVertical } from '@phosphor-icons/react';
 import { Table, Column, Row } from '@/types';
 import { toast } from 'sonner';
+import {
+  DndContext,
+  closestCenter,
+  KeyboardSensor,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from '@dnd-kit/core';
+import {
+  arrayMove,
+  SortableContext,
+  sortableKeyboardCoordinates,
+  horizontalListSortingStrategy,
+  useSortable,
+} from '@dnd-kit/sortable';
+import {
+  CSS,
+} from '@dnd-kit/utilities';
 
 interface DataTableProps {
   table: Table;
   onUpdateTable: (table: Table) => void;
+}
+
+interface SortableHeaderProps {
+  column: Column;
+  sortConfig: { key: string; direction: 'asc' | 'desc' } | null;
+  onSort: (columnId: string) => void;
+  onDelete: (columnId: string) => void;
+}
+
+function SortableHeader({ column, sortConfig, onSort, onDelete }: SortableHeaderProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: column.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <th 
+      ref={setNodeRef} 
+      style={style} 
+      className="text-left border-r border-border last:border-r-0 relative"
+    >
+      <div className="flex items-center justify-between p-3 group">
+        <div className="flex items-center gap-2">
+          <button
+            className="p-1 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing"
+            {...attributes}
+            {...listeners}
+          >
+            <GripVertical className="w-3 h-3 text-muted-foreground" />
+          </button>
+          <button
+            className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
+            onClick={() => onSort(column.id)}
+          >
+            {column.name}
+            {sortConfig?.key === column.id && (
+              sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+            )}
+          </button>
+        </div>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-auto"
+          onClick={() => onDelete(column.id)}
+        >
+          <Trash className="w-3 h-3" />
+        </Button>
+      </div>
+    </th>
+  );
 }
 
 export function DataTable({ table, onUpdateTable }: DataTableProps) {
@@ -20,6 +100,31 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
   const [isAddColumnOpen, setIsAddColumnOpen] = useState(false);
   const [newColumn, setNewColumn] = useState({ name: '', type: 'text' as Column['type'], options: [''] });
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
+    })
+  );
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (active.id !== over?.id) {
+      const oldIndex = table.columns.findIndex(col => col.id === active.id);
+      const newIndex = table.columns.findIndex(col => col.id === over?.id);
+
+      const newColumns = arrayMove(table.columns, oldIndex, newIndex);
+      
+      onUpdateTable({
+        ...table,
+        columns: newColumns
+      });
+      
+      toast.success('欄位順序已更新');
+    }
+  };
 
   const addColumn = () => {
     if (!newColumn.name.trim()) {
@@ -282,64 +387,58 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
 
       <div className="border border-border rounded-lg overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-muted/50">
-              <tr>
-                {table.columns.map((column) => (
-                  <th key={column.id} className="text-left border-r border-border last:border-r-0">
-                    <div className="flex items-center justify-between p-3 group">
-                      <button
-                        className="flex items-center gap-2 text-sm font-medium text-foreground hover:text-primary transition-colors"
-                        onClick={() => handleSort(column.id)}
-                      >
-                        {column.name}
-                        {sortConfig?.key === column.id && (
-                          sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
-                        )}
-                      </button>
+          <DndContext 
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragEnd={handleDragEnd}
+          >
+            <table className="w-full">
+              <thead className="bg-muted/50">
+                <tr>
+                  <SortableContext items={table.columns.map(col => col.id)} strategy={horizontalListSortingStrategy}>
+                    {table.columns.map((column) => (
+                      <SortableHeader
+                        key={column.id}
+                        column={column}
+                        sortConfig={sortConfig}
+                        onSort={handleSort}
+                        onDelete={deleteColumn}
+                      />
+                    ))}
+                  </SortableContext>
+                  <th className="w-12 p-3"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedRows.map((row) => (
+                  <tr key={row.id} className="border-t border-border hover:bg-muted/25 transition-colors">
+                    {table.columns.map((column) => (
+                      <td key={column.id} className="border-r border-border last:border-r-0">
+                        {renderCell(row, column)}
+                      </td>
+                    ))}
+                    <td className="p-2">
                       <Button
                         variant="ghost"
                         size="sm"
                         className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-auto"
-                        onClick={() => deleteColumn(column.id)}
+                        onClick={() => deleteRow(row.id)}
                       >
                         <Trash className="w-3 h-3" />
                       </Button>
-                    </div>
-                  </th>
-                ))}
-                <th className="w-12 p-3"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {sortedRows.map((row) => (
-                <tr key={row.id} className="border-t border-border hover:bg-muted/25 transition-colors">
-                  {table.columns.map((column) => (
-                    <td key={column.id} className="border-r border-border last:border-r-0">
-                      {renderCell(row, column)}
                     </td>
-                  ))}
-                  <td className="p-2">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-auto"
-                      onClick={() => deleteRow(row.id)}
-                    >
-                      <Trash className="w-3 h-3" />
-                    </Button>
-                  </td>
-                </tr>
-              ))}
-              {table.rows.length === 0 && (
-                <tr>
-                  <td colSpan={table.columns.length + 1} className="p-8 text-center text-muted-foreground">
-                    尚無資料。點擊「新增資料列」開始輸入資料。
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
+                  </tr>
+                ))}
+                {table.rows.length === 0 && (
+                  <tr>
+                    <td colSpan={table.columns.length + 1} className="p-8 text-center text-muted-foreground">
+                      尚無資料。點擊「新增資料列」開始輸入資料。
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </DndContext>
         </div>
       </div>
     </div>
