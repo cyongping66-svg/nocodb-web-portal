@@ -99,7 +99,7 @@ function App() {
 
   const createTable = () => {
     if (!newTableName.trim()) {
-      toast.error('請輸入資料表名稱');
+      toast.error('請輸入子表名稱');
       return;
     }
 
@@ -128,7 +128,7 @@ function App() {
     setActiveTableId(newTable.id);
     setNewTableName('');
     setIsCreateDialogOpen(false);
-    toast.success(`資料表「${newTable.name}」建立成功`);
+    toast.success(`子表「${newTable.name}」建立成功`);
   };
 
   const deleteTable = (tableId: string) => {
@@ -136,7 +136,7 @@ function App() {
     if (activeTableId === tableId) {
       setActiveTableId(null);
     }
-    toast.success('資料表刪除成功');
+    toast.success('子表刪除成功');
   };
 
   const updateTable = (updatedTable: Table) => {
@@ -181,26 +181,26 @@ function App() {
               <DialogTrigger asChild>
                 <Button className="w-full mb-4" size="sm">
                   <Plus className="w-4 h-4 mr-2" />
-                  新增資料表
+                  新增子表
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>建立新資料表</DialogTitle>
+                  <DialogTitle>建立新子表</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4">
                   <div>
-                    <Label htmlFor="table-name">資料表名稱</Label>
+                    <Label htmlFor="table-name">子表名稱</Label>
                     <Input
                       id="table-name"
                       value={newTableName}
                       onChange={(e) => setNewTableName(e.target.value)}
-                      placeholder="輸入資料表名稱"
+                      placeholder="輸入子表名稱"
                       onKeyDown={(e) => e.key === 'Enter' && createTable()}
                     />
                   </div>
                   <Button onClick={createTable} className="w-full">
-                    建立資料表
+                    建立子表
                   </Button>
                 </div>
               </DialogContent>
@@ -260,13 +260,13 @@ function App() {
                 </CardHeader>
                 <CardContent className="text-center">
                   <p className="text-muted-foreground mb-4">
-                    建立您的第一個資料表來開始組織您的資料
+                    建立您的第一個子表來開始組織您的資料
                   </p>
                   <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
                     <DialogTrigger asChild>
                       <Button>
                         <Plus className="w-4 h-4 mr-2" />
-                        建立第一個資料表
+                        建立第一個子表
                       </Button>
                     </DialogTrigger>
                   </Dialog>

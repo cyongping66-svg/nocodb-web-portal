@@ -36,7 +36,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
     onUpdateTable({ ...table, rows: updatedRows });
     setEditingRow(null);
     setEditValues({});
-    toast.success('資料列更新成功');
+    toast.success('行更新成功');
   };
 
   const cancelEdit = () => {
@@ -49,7 +49,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
       ...table,
       rows: table.rows.filter(row => row.id !== rowId)
     });
-    toast.success('資料列刪除成功');
+    toast.success('行刪除成功');
   };
 
   const addNewRow = () => {
@@ -68,7 +68,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
 
     setNewRowValues({});
     setIsAddRowOpen(false);
-    toast.success('資料列新增成功');
+    toast.success('行新增成功');
   };
 
   const renderFieldInput = (column: any, value: any, onChange: (value: any) => void, isEditing = false) => {
@@ -163,12 +163,12 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
           <DialogTrigger asChild>
             <Button>
               <Plus className="w-4 h-4 mr-2" />
-              新增資料列
+              新增行
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
             <DialogHeader>
-              <DialogTitle>新增資料列</DialogTitle>
+              <DialogTitle>新增行</DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               {table.columns.map((column) => (
@@ -182,7 +182,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
               ))}
               <div className="flex gap-2 pt-4">
                 <Button onClick={addNewRow} className="flex-1">
-                  新增資料列
+                  新增行
                 </Button>
                 <Button variant="outline" onClick={() => setIsAddRowOpen(false)} className="flex-1">
                   取消
@@ -200,7 +200,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
       {table.rows.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center">
-            <p className="text-muted-foreground">尚無資料。點擊「新增資料列」開始輸入資料。</p>
+            <p className="text-muted-foreground">尚無資料。點擊「新增行」開始輸入資料。</p>
           </CardContent>
         </Card>
       ) : (

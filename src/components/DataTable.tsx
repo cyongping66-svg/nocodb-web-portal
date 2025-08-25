@@ -305,7 +305,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
         <div className="flex items-center gap-2">
           <Button onClick={addRow} size="sm">
             <Plus className="w-4 h-4 mr-2" />
-            新增資料列
+            新增行
           </Button>
           
           <Dialog open={isAddColumnOpen} onOpenChange={setIsAddColumnOpen}>
@@ -432,7 +432,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                 {table.rows.length === 0 && (
                   <tr>
                     <td colSpan={table.columns.length + 1} className="p-8 text-center text-muted-foreground">
-                      尚無資料。點擊「新增資料列」開始輸入資料。
+                      尚無資料。點擊「新增行」開始輸入資料。
                     </td>
                   </tr>
                 )}

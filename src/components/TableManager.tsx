@@ -25,7 +25,7 @@ export function TableManager({ tables, activeTableId, onSelectTable, onDeleteTab
 
   const saveEdit = () => {
     if (!editingTableId || !editValue.trim()) {
-      toast.error('請輸入資料表名稱');
+      toast.error('請輸入子表名稱');
       return;
     }
 
@@ -39,7 +39,7 @@ export function TableManager({ tables, activeTableId, onSelectTable, onDeleteTab
 
     setEditingTableId(null);
     setEditValue('');
-    toast.success('資料表名稱更新成功');
+    toast.success('子表名稱更新成功');
   };
 
   const cancelEdit = () => {
@@ -51,7 +51,7 @@ export function TableManager({ tables, activeTableId, onSelectTable, onDeleteTab
     return (
       <div className="text-center text-muted-foreground py-8">
         <TableIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
-        <p className="text-sm">尚無資料表</p>
+        <p className="text-sm">尚無子表</p>
       </div>
     );
   }
@@ -138,9 +138,9 @@ export function TableManager({ tables, activeTableId, onSelectTable, onDeleteTab
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>刪除資料表</AlertDialogTitle>
+                      <AlertDialogTitle>刪除子表</AlertDialogTitle>
                       <AlertDialogDescription>
-                        您確定要刪除「{table.name}」嗎？此操作無法復原，將永久刪除此資料表中的所有資料。
+                        您確定要刪除「{table.name}」嗎？此操作無法復原，將永久刪除此子表中的所有資料。
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
