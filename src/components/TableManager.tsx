@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Table as TableIcon, Trash, Pencil, Check, X } from '@phosphor-icons/react';
+import { Table as TableIcon, Trash2, Edit, Check, X } from 'lucide-react';
 import { Table } from '@/types';
 import { toast } from 'sonner';
 
@@ -120,7 +120,7 @@ export function TableManager({ tables, activeTableId, onSelectTable, onDeleteTab
                     startEdit(table);
                   }}
                 >
-                  <Pencil className="w-3 h-3" />
+                  <Edit className="w-3 h-3" />
                 </Button>
                 
                 <AlertDialog>
@@ -133,7 +133,7 @@ export function TableManager({ tables, activeTableId, onSelectTable, onDeleteTab
                       }`}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      <Trash className="w-3 h-3" />
+                      <Trash2 className="w-3 h-3" />
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>

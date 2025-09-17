@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Plus, Pencil, Trash, File, Link, Envelope, Phone, MagnifyingGlass, Funnel, X, CheckSquare, Square, Download, Copy } from '@phosphor-icons/react';
+import { Plus, Edit, Trash2, File, Link, Mail, Phone, Search, Filter, X, CheckSquare, Square, Download, Copy } from 'lucide-react';
 import { Table, Row } from '@/types';
 import { toast } from 'sonner';
 
@@ -104,6 +104,10 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
               break;
             case 'file':
               acc[col.id] = null;
+              break;
+            case 'select':
+              // 对于选择类型，设置为空字符串
+              acc[col.id] = '';
               break;
             default:
               acc[col.id] = '';
@@ -506,7 +510,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
         if (!value) return <span className="text-sm text-muted-foreground">無電子郵件</span>;
         return (
           <div className="flex items-center gap-2 text-sm">
-            <Envelope className="w-4 h-4 text-green-500" />
+            <Mail className="w-4 h-4 text-green-500" />
             <a 
               href={`mailto:${value}`}
               className="text-green-600 hover:text-green-800 underline"
@@ -550,7 +554,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
         <div className="flex items-center gap-3">
           {/* 搜尋框 */}
           <div className="relative flex-1 max-w-sm">
-            <MagnifyingGlass className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="搜尋所有欄位..."
               value={searchTerm}
@@ -573,7 +577,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
           <Dialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
             <DialogTrigger asChild>
               <Button variant="outline" size="sm">
-                <Funnel className="w-4 h-4 mr-2" />
+                <Filter className="w-4 h-4 mr-2" />
                 篩選
                 {Object.values(filters).filter(Boolean).length > 0 && (
                   <span className="ml-1 bg-primary text-primary-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center">
@@ -840,7 +844,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
                 <Dialog open={isBatchEditOpen} onOpenChange={setIsBatchEditOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm">
-                      <Pencil className="w-4 h-4 mr-2" />
+                      <Edit className="w-4 h-4 mr-2" />
                       批量編輯
                     </Button>
                   </DialogTrigger>
@@ -943,7 +947,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
                 </Button>
 
                 <Button variant="destructive" size="sm" onClick={batchDelete}>
-                  <Trash className="w-4 h-4 mr-2" />
+                  <Trash2 className="w-4 h-4 mr-2" />
                   刪除選中
                 </Button>
               </div>
@@ -1025,7 +1029,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
         <Card>
           <CardContent className="p-8 text-center">
             <div className="space-y-2">
-              <MagnifyingGlass className="w-8 h-8 mx-auto text-muted-foreground/50" />
+              <Search className="w-8 h-8 mx-auto text-muted-foreground/50" />
               <p className="text-muted-foreground">找不到符合條件的資料</p>
               <Button variant="outline" size="sm" onClick={clearFilters}>
                 清除篩選條件
@@ -1077,14 +1081,14 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
                           variant="ghost"
                           onClick={() => startEditRow(row)}
                         >
-                          <Pencil className="w-3 h-3" />
+                          <Edit className="w-3 h-3" />
                         </Button>
                         <Button
                           size="sm"
                           variant="ghost"
                           onClick={() => deleteRow(row.id)}
                         >
-                          <Trash className="w-3 h-3" />
+                          <Trash2 className="w-3 h-3" />
                         </Button>
                       </>
                     )}
@@ -1114,6 +1118,19 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
           ))}
         </div>
       )}
+      
+      {/* 底部新增卡片按鈕 */}
+      <div className="mt-6">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setIsAddRowOpen(true)}
+          className="w-full"
+        >
+          <Plus className="w-4 h-4 mr-2" />
+          新增卡片
+        </Button>
+      </div>
     </div>
   );
 }

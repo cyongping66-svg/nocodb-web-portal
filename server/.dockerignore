@@ -1,0 +1,17 @@
+# 後端 .dockerignore
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.git
+.gitignore
+README.md
+.env
+.nyc_output
+coverage
+.vscode
+.idea
+*.log
+.DS_Store
+# 只排除 SQLite 數據庫文件，但保留 database.js
+db/*.sqlite

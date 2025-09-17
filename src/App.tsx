@@ -1,12 +1,12 @@
-import { useState } from 'react';
-import { useKV } from '@github/spark/hooks';
+import { useState, useEffect } from 'react';
+import { useTables } from '@/hooks/use-tables';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Table as TableIcon, SquaresFour, Download } from '@phosphor-icons/react';
+import { Plus, Table as TableIcon, Grid3X3, Download } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { Table, ViewMode } from '@/types';
 import { TableManager } from '@/components/TableManager';
@@ -14,156 +14,86 @@ import { DataTable } from '@/components/DataTable';
 import { CardView } from '@/components/CardView';
 
 function App() {
-  const [tables, setTables] = useKV<Table[]>('database-tables', [
-    {
-      id: 'sample-employees',
-      name: '員工資料',
-      columns: [
-        { id: 'name', name: '姓名', type: 'text' },
-        { id: 'department', name: '部門', type: 'select', options: ['研發部', '行銷部', '人資部', '財務部'] },
-        { id: 'salary', name: '薪資', type: 'number' },
-        { id: 'hired_date', name: '到職日期', type: 'date' },
-        { id: 'email', name: '電子郵件', type: 'email' },
-        { id: 'phone', name: '聯絡電話', type: 'phone' },
-        { id: 'active', name: '在職狀態', type: 'boolean' }
-      ],
-      rows: [
-        {
-          id: 'emp1',
-          name: '張小明',
-          department: '研發部',
-          salary: 65000,
-          hired_date: '2023-01-15',
-          email: 'ming.zhang@company.com',
-          phone: '0912-345-678',
-          active: true
-        },
-        {
-          id: 'emp2', 
-          name: '李小華',
-          department: '行銷部',
-          salary: 58000,
-          hired_date: '2023-03-10',
-          email: 'hua.li@company.com',
-          phone: '0923-456-789',
-          active: true
-        },
-        {
-          id: 'emp3',
-          name: '王大偉',
-          department: '財務部', 
-          salary: 72000,
-          hired_date: '2022-11-20',
-          email: 'david.wang@company.com',
-          phone: '0934-567-890',
-          active: false
-        }
-      ]
-    },
-    {
-      id: 'sample-products',
-      name: '產品清單',
-      columns: [
-        { id: 'product_name', name: '產品名稱', type: 'text' },
-        { id: 'category', name: '分類', type: 'select', options: ['電子產品', '服飾配件', '居家用品', '運動器材'] },
-        { id: 'price', name: '價格', type: 'number' },
-        { id: 'launch_date', name: '上市日期', type: 'date' },
-        { id: 'product_url', name: '產品網頁', type: 'url' },
-        { id: 'manual', name: '使用手冊', type: 'file' },
-        { id: 'available', name: '供貨狀態', type: 'boolean' }
-      ],
-      rows: [
-        {
-          id: 'prod1',
-          product_name: '無線藍牙耳機',
-          category: '電子產品',
-          price: 2990,
-          launch_date: '2023-06-01',
-          product_url: 'https://example.com/wireless-earbuds',
-          manual: null,
-          available: true
-        },
-        {
-          id: 'prod2',
-          product_name: '運動T恤',
-          category: '服飾配件', 
-          price: 890,
-          launch_date: '2023-04-15',
-          product_url: 'https://example.com/sports-tshirt',
-          manual: null,
-          available: true
-        },
-        {
-          id: 'prod3',
-          product_name: '智能掃地機器人',
-          category: '居家用品',
-          price: 15900,
-          launch_date: '2023-08-20',
-          product_url: 'https://example.com/robot-vacuum',
-          manual: null,
-          available: false
-        }
-      ]
-    }
-  ]);
-  const [activeTableId, setActiveTableId] = useState<string | null>('sample-employees');
+  const { 
+    tables, 
+    setTables, 
+    createTable: createTableInDB, 
+    deleteTable: deleteTableFromDB, 
+    updateTable: updateTableInDB,
+    createRow,
+    updateRow,
+    deleteRow,
+    batchUpdateRows,
+    loading, 
+    error, 
+    refresh, 
+    isUsingSupabase 
+  } = useTables();
+  
+  const [activeTableId, setActiveTableId] = useState<string | null>(() => {
+    // 從 localStorage 讀取上次選中的表格
+    const savedTableId = localStorage.getItem('activeTableId');
+    return savedTableId || 'sample-employees';
+  });
   const [viewMode, setViewMode] = useState<ViewMode>('grid');
   const [newTableName, setNewTableName] = useState('');
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
 
+  // 當選中的表格改變時，保存到 localStorage
+  useEffect(() => {
+    if (activeTableId) {
+      localStorage.setItem('activeTableId', activeTableId);
+    }
+  }, [activeTableId]);
+
   const activeTable = tables?.find(table => table.id === activeTableId);
 
-  const createTable = () => {
+  const createTable = async () => {
     if (!newTableName.trim()) {
       toast.error('請輸入子表名稱');
       return;
     }
 
-    const newTable: Table = {
+    const newTableData = {
       id: Date.now().toString(),
       name: newTableName.trim(),
       columns: [
-        { id: 'name', name: '姓名', type: 'text' },
-        { id: 'email', name: '電子郵件', type: 'email' },
-        { id: 'created', name: '建立日期', type: 'date' }
-      ],
-      rows: [
-        {
-          id: (Date.now() + 1).toString(),
-          name: '張小明',
-          email: 'ming.zhang@example.com',
-          created: new Date().toISOString().split('T')[0]
-        },
-        {
-          id: (Date.now() + 2).toString(), 
-          name: '李小華',
-          email: 'hua.li@example.com',
-          created: new Date().toISOString().split('T')[0]
-        }
+        { id: 'name', name: '姓名', type: 'text' as const },
+        { id: 'email', name: '電子郵件', type: 'email' as const },
+        { id: 'created', name: '建立日期', type: 'date' as const }
       ]
     };
 
-    setTables(currentTables => currentTables ? [...currentTables, newTable] : [newTable]);
-    setActiveTableId(newTable.id);
+    await createTableInDB(newTableData);
+    setActiveTableId(newTableData.id);
     setNewTableName('');
     setIsCreateDialogOpen(false);
-    toast.success(`子表「${newTable.name}」建立成功`);
   };
 
-  const deleteTable = (tableId: string) => {
-    setTables(currentTables => currentTables ? currentTables.filter(table => table.id !== tableId) : []);
+  const deleteTable = async (tableId: string) => {
+    await deleteTableFromDB(tableId);
     if (activeTableId === tableId) {
       setActiveTableId(null);
     }
-    toast.success('子表刪除成功');
   };
 
-  const updateTable = (updatedTable: Table) => {
-    setTables(currentTables => 
-      currentTables ? currentTables.map(table => 
-        table.id === updatedTable.id ? updatedTable : table
-      ) : [updatedTable]
-    );
+  const updateTable = async (updatedTable: Table) => {
+    try {
+      // 使用 hook 中的 updateTable 方法
+      if (updateTableInDB) {
+        await updateTableInDB(updatedTable);
+      } else {
+        // 備用邏輯
+        await setTables(currentTables => 
+          currentTables ? currentTables.map(table => 
+            table.id === updatedTable.id ? updatedTable : table
+          ) : [updatedTable]
+        );
+      }
+    } catch (error) {
+      console.error('Error updating table:', error);
+      toast.error('更新表格時發生錯誤');
+    }
   };
 
   const exportData = () => {
@@ -193,6 +123,15 @@ function App() {
         <div className="w-64 border-r border-border bg-card">
           <div className="p-4 border-b border-border">
             <h1 className="text-xl font-bold text-foreground">孵化之路信息管理系統</h1>
+            <div className="mt-2 flex items-center gap-2">
+              <div className={`w-2 h-2 rounded-full ${isUsingSupabase ? 'bg-green-500' : 'bg-orange-500'}`}></div>
+              <span className="text-xs text-muted-foreground">
+                {isUsingSupabase ? '雲端存儲' : '本地存儲'}
+              </span>
+              {error && (
+                <span className="text-xs text-red-500">連接錯誤</span>
+              )}
+            </div>
           </div>
           
           <div className="p-4">
@@ -254,7 +193,7 @@ function App() {
                           <TableIcon className="w-4 h-4" />
                         </TabsTrigger>
                         <TabsTrigger value="card">
-                          <SquaresFour className="w-4 h-4" />
+                          <Grid3X3 className="w-4 h-4" />
                         </TabsTrigger>
                       </TabsList>
                     </Tabs>
@@ -265,7 +204,13 @@ function App() {
               {/* Content */}
               <div className="flex-1 p-4">
                 {viewMode === 'grid' ? (
-                  <DataTable table={activeTable} onUpdateTable={updateTable} />
+                  <DataTable 
+                    table={activeTable} 
+                    onUpdateTable={updateTable}
+                    onCreateRow={createRow}
+                    onUpdateRow={updateRow}
+                    onDeleteRow={deleteRow}
+                  />
                 ) : (
                   <CardView table={activeTable} onUpdateTable={updateTable} />
                 )}

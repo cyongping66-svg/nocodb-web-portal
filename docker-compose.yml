@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  # 後端 API 服務器
+  backend:
+    image: clark640/nocodb-backend:250826
+    container_name: nocodb-api
+    restart: unless-stopped
+    environment:
+      - NODE_ENV=production
+      - PORT=3003
+      - DB_PATH=/app/data
+    volumes:
+      # 持久化數據庫文件到單獨目錄
+      - ./data:/app/data
+    expose:
+      - "3003"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3003/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # 前端 Web 應用
+  frontend:
+    image: clark640/nocodb-frontend:250826
+    container_name: nocodb-web
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost/"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  # 數據庫持久化存儲
+  db_data:
+    driver: local

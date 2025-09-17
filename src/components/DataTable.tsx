@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Plus, Pencil, Trash, ArrowUp, ArrowDown, DotsSixVertical, Link, File, Envelope, Phone, MagnifyingGlass, Funnel, X, CheckSquare, Square, Download, Copy } from '@phosphor-icons/react';
+import { Plus, Edit, Trash2, ArrowUp, ArrowDown, GripVertical, Link, File, Mail, Phone, Search, Filter, X, CheckSquare, Square, Download, Copy } from 'lucide-react';
 import { Table, Column, Row } from '@/types';
 import { toast } from 'sonner';
 import {
@@ -57,6 +57,9 @@ const getOptionColor = (option: string, index: number) => {
 interface DataTableProps {
   table: Table;
   onUpdateTable: (table: Table) => void;
+  onCreateRow?: (tableId: string, rowData: any) => void;
+  onUpdateRow?: (tableId: string, rowId: string, rowData: any) => void;
+  onDeleteRow?: (tableId: string, rowId: string) => void;
 }
 
 interface SortableHeaderProps {
@@ -65,9 +68,12 @@ interface SortableHeaderProps {
   onSort: (columnId: string) => void;
   onDelete: (columnId: string) => void;
   onUpdateColumn: (columnId: string, newName: string) => void;
+  columnWidth?: number;
+  onResizeStart: (e: React.MouseEvent, columnId: string) => void;
+  resizingColumn: string | null;
 }
 
-function SortableHeader({ column, sortConfig, onSort, onDelete, onUpdateColumn }: SortableHeaderProps) {
+function SortableHeader({ column, sortConfig, onSort, onDelete, onUpdateColumn, columnWidth, onResizeStart, resizingColumn }: SortableHeaderProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(column.name);
 
@@ -117,7 +123,11 @@ function SortableHeader({ column, sortConfig, onSort, onDelete, onUpdateColumn }
   return (
     <th 
       ref={setNodeRef} 
-      style={style} 
+      style={{
+        ...style,
+        width: columnWidth ? `${columnWidth}px` : 'auto',
+        minWidth: '120px'
+      }} 
       className="text-left border-r border-border last:border-r-0 relative"
     >
       <div className="flex items-center justify-between p-3 group">
@@ -127,7 +137,7 @@ function SortableHeader({ column, sortConfig, onSort, onDelete, onUpdateColumn }
             {...attributes}
             {...listeners}
           >
-            <DotsSixVertical className="w-3 h-3 text-muted-foreground" />
+            <GripVertical className="w-3 h-3 text-muted-foreground" />
           </button>
           
           {isEditing ? (
@@ -141,21 +151,34 @@ function SortableHeader({ column, sortConfig, onSort, onDelete, onUpdateColumn }
             />
           ) : (
             <div className="flex items-center gap-1">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-1">
                 <span 
-                  className="hover:bg-muted/50 px-1 py-0.5 rounded cursor-pointer transition-colors text-sm font-medium text-foreground"
+                  className="hover:bg-muted/50 px-1 py-0.5 rounded cursor-pointer transition-colors text-sm font-medium text-foreground whitespace-nowrap"
                   onClick={handleEditClick}
                   title="點擊編輯欄位名稱"
                 >
                   {column.name}
                 </span>
                 <button
-                  className="flex items-center gap-1 text-sm font-medium text-foreground hover:text-primary transition-colors"
+                  className="flex items-center justify-center w-5 h-5 text-xs text-muted-foreground hover:text-primary hover:bg-muted/50 rounded transition-colors"
                   onClick={() => onSort(column.id)}
-                  title="排序"
+                  title={
+                    sortConfig?.key === column.id 
+                      ? `當前排序：${sortConfig.direction === 'asc' ? '升序' : '降序'}，點擊切換` 
+                      : '點擊排序'
+                  }
                 >
-                  {sortConfig?.key === column.id && (
-                    sortConfig.direction === 'asc' ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />
+                  {sortConfig?.key === column.id ? (
+                    sortConfig.direction === 'asc' ? (
+                      <ArrowUp className="w-3 h-3" />
+                    ) : (
+                      <ArrowDown className="w-3 h-3" />
+                    )
+                  ) : (
+                    <div className="flex flex-col items-center gap-0">
+                      <ArrowUp className="w-2.5 h-2.5 opacity-40" />
+                      <ArrowDown className="w-2.5 h-2.5 opacity-40 -mt-0.5" />
+                    </div>
                   )}
                 </button>
               </div>
@@ -164,7 +187,7 @@ function SortableHeader({ column, sortConfig, onSort, onDelete, onUpdateColumn }
                 onClick={handleEditClick}
                 title="編輯欄位名稱"
               >
-                <Pencil className="w-3 h-3 text-muted-foreground" />
+                <Edit className="w-3 h-3 text-muted-foreground" />
               </button>
             </div>
           )}
@@ -175,16 +198,45 @@ function SortableHeader({ column, sortConfig, onSort, onDelete, onUpdateColumn }
           className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-auto"
           onClick={() => onDelete(column.id)}
         >
-          <Trash className="w-3 h-3" />
+          <Trash2 className="w-3 h-3" />
         </Button>
+      </div>
+      
+      {/* 可拖拽的調整邊框 */}
+      <div
+        className={`absolute top-0 h-full cursor-col-resize transition-all duration-150 w-4 ${
+          resizingColumn === column.id 
+            ? 'bg-primary/30' 
+            : 'bg-transparent hover:bg-primary/20'
+        }`}
+        style={{
+          right: '-8px', // 調整位置讓拖拽區域在欄位邊界
+          zIndex: 20,
+        }}
+        onMouseDown={(e) => onResizeStart(e, column.id)}
+        title="拖拽調整欄位寬度"
+      >
+        {/* 中央的視覺指示線 */}
+        <div className={`absolute left-1/2 top-0 w-0.5 h-full transition-all duration-150 ${
+          resizingColumn === column.id 
+            ? 'bg-primary' 
+            : 'bg-border group-hover:bg-primary/70'
+        }`} style={{ transform: 'translateX(-50%)' }} />
       </div>
     </th>
   );
 }
 
-export function DataTable({ table, onUpdateTable }: DataTableProps) {
+export function DataTable({ 
+  table, 
+  onUpdateTable, 
+  onCreateRow, 
+  onUpdateRow, 
+  onDeleteRow 
+}: DataTableProps) {
   const [editingCell, setEditingCell] = useState<{ rowId: string; columnId: string } | null>(null);
   const [editValue, setEditValue] = useState('');
+  const [selectOpen, setSelectOpen] = useState(false);
   const [isAddColumnOpen, setIsAddColumnOpen] = useState(false);
   const [newColumn, setNewColumn] = useState({ name: '', type: 'text' as Column['type'], options: [''] });
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
@@ -195,6 +247,10 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
   const [isBatchEditOpen, setIsBatchEditOpen] = useState(false);
   const [batchEditColumn, setBatchEditColumn] = useState('');
   const [batchEditValue, setBatchEditValue] = useState('');
+  
+  // 欄位寬度調整相關狀態
+  const [columnWidths, setColumnWidths] = useState<{ [columnId: string]: number }>({});
+  const [resizingColumn, setResizingColumn] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor),
@@ -202,6 +258,48 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // 当开始编辑选择类型的列时，自动打开选择器
+  useEffect(() => {
+    if (editingCell) {
+      const column = table.columns.find(col => col.id === editingCell.columnId);
+      if (column?.type === 'select') {
+        setSelectOpen(true);
+      }
+    } else {
+      setSelectOpen(false);
+    }
+  }, [editingCell, table.columns]);
+
+  // 欄位寬度調整處理函數
+  const handleResizeStart = (e: React.MouseEvent, columnId: string) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const startX = e.clientX;
+    const startWidth = columnWidths[columnId] || 200; // 增加預設寬度到 200px
+    
+    setResizingColumn(columnId);
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const deltaX = e.clientX - startX;
+      const newWidth = Math.max(120, startWidth + deltaX); // 增加最小寬度到 120px
+      
+      setColumnWidths(prev => ({
+        ...prev,
+        [columnId]: newWidth
+      }));
+    };
+
+    const handleMouseUp = () => {
+      setResizingColumn(null);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -289,6 +387,10 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
           case 'file':
             acc[col.id] = null;
             break;
+          case 'select':
+            // 对于选择类型，设置为空字符串，这样会显示占位符
+            acc[col.id] = '';
+            break;
           default:
             acc[col.id] = '';
         }
@@ -296,17 +398,27 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
       }, {} as Record<string, any>)
     };
 
-    onUpdateTable({
-      ...table,
-      rows: [...table.rows, newRow] as Row[]
-    });
+    // 如果有 API 方法，使用 API；否則使用本地更新
+    if (onCreateRow) {
+      onCreateRow(table.id, newRow);
+    } else {
+      onUpdateTable({
+        ...table,
+        rows: [...table.rows, newRow] as Row[]
+      });
+    }
   };
 
   const deleteRow = (rowId: string) => {
-    onUpdateTable({
-      ...table,
-      rows: table.rows.filter(row => row.id !== rowId)
-    });
+    // 如果有 API 方法，使用 API；否則使用本地更新
+    if (onDeleteRow) {
+      onDeleteRow(table.id, rowId);
+    } else {
+      onUpdateTable({
+        ...table,
+        rows: table.rows.filter(row => row.id !== rowId)
+      });
+    }
   };
 
   const startEdit = (rowId: string, columnId: string, currentValue: any) => {
@@ -327,15 +439,30 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
       processedValue = editValue === 'true';
     }
 
-    const updatedRows: Row[] = table.rows.map(row =>
-      row.id === editingCell.rowId
-        ? { ...row, [editingCell.columnId]: processedValue }
-        : row
-    );
+    // 獲取要更新的行
+    const rowToUpdate = table.rows.find(row => row.id === editingCell.rowId);
+    if (!rowToUpdate) return;
 
-    onUpdateTable({ ...table, rows: updatedRows });
+    const updatedRowData = {
+      ...rowToUpdate,
+      [editingCell.columnId]: processedValue
+    };
+
+    // 如果有 API 方法，使用 API；否則使用本地更新
+    if (onUpdateRow) {
+      onUpdateRow(table.id, editingCell.rowId, updatedRowData);
+    } else {
+      const updatedRows: Row[] = table.rows.map(row =>
+        row.id === editingCell.rowId
+          ? updatedRowData
+          : row
+      );
+      onUpdateTable({ ...table, rows: updatedRows });
+    }
+
     setEditingCell(null);
     setEditValue('');
+    setSelectOpen(false);
   };
 
   const handleFileUpload = (rowId: string, columnId: string, file: File) => {
@@ -362,6 +489,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
   const cancelEdit = () => {
     setEditingCell(null);
     setEditValue('');
+    setSelectOpen(false);
   };
 
   const handleSort = (columnId: string) => {
@@ -569,9 +697,30 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
       const aVal = a[sortConfig.key];
       const bVal = b[sortConfig.key];
       
-      if (aVal < bVal) return sortConfig.direction === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
-      return 0;
+      // 找到對應的欄位以獲取類型信息
+      const column = table.columns.find(col => col.id === sortConfig.key);
+      
+      // 根據欄位類型進行不同的排序處理
+      if (column?.type === 'number') {
+        const numA = Number(aVal) || 0;
+        const numB = Number(bVal) || 0;
+        return sortConfig.direction === 'asc' ? numA - numB : numB - numA;
+      } else if (column?.type === 'date') {
+        const dateA = new Date(aVal || 0).getTime();
+        const dateB = new Date(bVal || 0).getTime();
+        return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
+      } else if (column?.type === 'boolean') {
+        const boolA = aVal === true ? 1 : 0;
+        const boolB = bVal === true ? 1 : 0;
+        return sortConfig.direction === 'asc' ? boolA - boolB : boolB - boolA;
+      } else {
+        // 字符串類型的排序
+        const strA = String(aVal || '').toLowerCase();
+        const strB = String(bVal || '').toLowerCase();
+        if (strA < strB) return sortConfig.direction === 'asc' ? -1 : 1;
+        if (strA > strB) return sortConfig.direction === 'asc' ? 1 : -1;
+        return 0;
+      }
     });
   }
 
@@ -591,21 +740,41 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
         );
       } else if (column.type === 'select' && column.options) {
         return (
-          <Select value={editValue} onValueChange={(val) => { setEditValue(val); saveEdit(); }}>
-            <SelectTrigger className="h-8">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {column.options.map((option, index) => (
-                <SelectItem key={option} value={option}>
-                  <div className="flex items-center gap-2">
-                    <div className={`w-3 h-3 rounded border ${getOptionColor(option, index)}`} />
-                    {option}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="w-full" onClick={(e) => e.stopPropagation()}>
+            <Select 
+              value={editValue || ''} 
+              open={selectOpen}
+              onOpenChange={setSelectOpen}
+              onValueChange={(val) => {
+                setEditValue(val);
+                // 立即更新數據並結束編輯
+                const updatedRows: Row[] = table.rows.map(row =>
+                  row.id === editingCell?.rowId
+                    ? { ...row, [editingCell.columnId]: val }
+                    : row
+                );
+                onUpdateTable({ ...table, rows: updatedRows });
+                setEditingCell(null);
+                setEditValue('');
+                setSelectOpen(false);
+                toast.success('選項已更新');
+              }}
+            >
+              <SelectTrigger className="h-8 w-full">
+                <SelectValue placeholder="請選擇選項" />
+              </SelectTrigger>
+              <SelectContent>
+                {column.options.map((option, index) => (
+                  <SelectItem key={option} value={option}>
+                    <div className="flex items-center gap-2">
+                      <div className={`w-3 h-3 rounded border ${getOptionColor(option, index)}`} />
+                      {option}
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         );
       } else if (column.type === 'file') {
         return (
@@ -683,7 +852,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
       } else if (column.type === 'email' && value) {
         return (
           <div className="flex items-center gap-2 text-sm">
-            <Envelope className="w-4 h-4 text-green-500" />
+            <Mail className="w-4 h-4 text-green-500" />
             <a 
               href={`mailto:${value}`}
               className="text-green-600 hover:text-green-800 underline"
@@ -706,16 +875,21 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
             </a>
           </div>
         );
-      } else if (column.type === 'select' && value && column.options) {
-        // 為選項類型添加顏色標籤
-        const optionIndex = column.options.indexOf(value);
-        const colorClass = getOptionColor(value, optionIndex);
-        
-        return (
-          <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${colorClass}`}>
-            {value}
-          </span>
-        );
+      } else if (column.type === 'select' && column.options) {
+        if (value && column.options.includes(value)) {
+          // 為選項類型添加顏色標籤
+          const optionIndex = column.options.indexOf(value);
+          const colorClass = getOptionColor(value, optionIndex);
+          
+          return (
+            <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${colorClass}`}>
+              {value}
+            </span>
+          );
+        } else {
+          // 如果没有值或值不在选项中，显示占位符
+          return <span className="text-sm text-muted-foreground italic">請選擇選項</span>;
+        }
       } else {
         return <span className="text-sm">{String(value || '')}</span>;
       }
@@ -734,22 +908,22 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
   return (
     <div className="space-y-4">
       {/* 搜尋和篩選區域 */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-3">
+      <div className="bg-muted/30 rounded-lg p-4 space-y-3">
+        <div className="flex items-center justify-between gap-4">
           {/* 搜尋框 */}
-          <div className="relative flex-1 max-w-sm">
-            <MagnifyingGlass className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <div className="relative flex-1 max-w-md">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="搜尋所有欄位..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
+              className="pl-9 pr-8 h-10 bg-background"
             />
             {searchTerm && (
               <Button
                 variant="ghost"
                 size="sm"
-                className="absolute right-1 top-1/2 transform -translate-y-1/2 p-1 h-auto"
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 p-1 h-auto hover:bg-muted"
                 onClick={() => setSearchTerm('')}
               >
                 <X className="w-3 h-3" />
@@ -757,150 +931,218 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
             )}
           </div>
 
-          {/* 篩選按鈕 */}
-          <Dialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
-            <DialogTrigger asChild>
-              <Button variant="outline" size="sm">
-                <Funnel className="w-4 h-4 mr-2" />
-                篩選
-                {Object.values(filters).filter(Boolean).length > 0 && (
-                  <span className="ml-1 bg-primary text-primary-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center">
-                    {Object.values(filters).filter(Boolean).length}
-                  </span>
-                )}
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-lg">
-              <DialogHeader>
-                <DialogTitle>進階篩選</DialogTitle>
+          {/* 右側操作按鈕組 */}
+          <div className="flex items-center gap-2">
+            {/* 篩選按鈕 */}
+            <Dialog open={isFilterOpen} onOpenChange={setIsFilterOpen}>
+              <DialogTrigger asChild>
+                <Button 
+                  variant={Object.values(filters).filter(Boolean).length > 0 ? "default" : "outline"} 
+                  size="sm" 
+                  className="relative h-10"
+                >
+                  <Filter className="w-4 h-4 mr-2" />
+                  篩選
+                  {Object.values(filters).filter(Boolean).length > 0 && (
+                    <span className="ml-2 bg-background text-foreground rounded-full w-5 h-5 text-xs flex items-center justify-center font-medium">
+                      {Object.values(filters).filter(Boolean).length}
+                    </span>
+                  )}
+                </Button>
+              </DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
+              <DialogHeader className="flex-shrink-0">
+                <DialogTitle className="flex items-center gap-2">
+                  <Filter className="w-5 h-5 text-primary" />
+                  進階篩選
+                </DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 max-h-96 overflow-y-auto">
+              <div className="flex-1 overflow-y-auto px-1">
+                <div className="space-y-6 py-4">
                 {table.columns.map((column) => (
-                  <div key={column.id}>
-                    <Label htmlFor={`filter-${column.id}`}>{column.name}</Label>
-                    {(() => {
-                      // 根據欄位類型提供不同的篩選控制項
-                      if (column.type === 'boolean') {
-                        return (
-                          <Select 
-                            value={filters[column.id] || '__all__'} 
-                            onValueChange={(value) => setFilters(prev => ({
-                              ...prev,
-                              [column.id]: value === '__all__' ? '' : value
-                            }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="選擇布林值" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__all__">全部</SelectItem>
-                              <SelectItem value="true">是</SelectItem>
-                              <SelectItem value="false">否</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        );
-                      } else if (column.type === 'select' && column.options) {
-                        return (
-                          <Select 
-                            value={filters[column.id] || '__all__'} 
-                            onValueChange={(value) => setFilters(prev => ({
-                              ...prev,
-                              [column.id]: value === '__all__' ? '' : value
-                            }))}
-                          >
-                            <SelectTrigger>
-                              <SelectValue placeholder="選擇選項" />
-                            </SelectTrigger>
-                            <SelectContent>
-                              <SelectItem value="__all__">全部</SelectItem>
-                              {column.options.map((option, index) => (
-                                <SelectItem key={option} value={option}>
+                  <div key={column.id} className="space-y-2">
+                    <Label htmlFor={`filter-${column.id}`} className="text-sm font-medium text-foreground">
+                      {column.name}
+                    </Label>
+                    <div className="space-y-2">
+                      {(() => {
+                        // 根據欄位類型提供不同的篩選控制項
+                        if (column.type === 'boolean') {
+                          return (
+                            <Select 
+                              value={filters[column.id] || '__all__'} 
+                              onValueChange={(value) => setFilters(prev => ({
+                                ...prev,
+                                [column.id]: value === '__all__' ? '' : value
+                              }))}
+                            >
+                              <SelectTrigger className="h-10">
+                                <SelectValue placeholder="選擇布林值" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__all__">
                                   <div className="flex items-center gap-2">
-                                    <div className={`w-3 h-3 rounded-full border ${getOptionColor(option, index)}`} />
-                                    {option}
+                                    <div className="w-2 h-2 rounded-full bg-muted border" />
+                                    全部
                                   </div>
                                 </SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
-                        );
-                      } else if (column.type === 'number') {
-                        return (
-                          <div className="flex gap-2">
-                            <Input
-                              type="number"
-                              placeholder="最小值"
-                              value={filters[`${column.id}_min`] || ''}
-                              onChange={(e) => setFilters(prev => ({
+                                <SelectItem value="true">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-green-500" />
+                                    是
+                                  </div>
+                                </SelectItem>
+                                <SelectItem value="false">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-2 h-2 rounded-full bg-red-500" />
+                                    否
+                                  </div>
+                                </SelectItem>
+                              </SelectContent>
+                            </Select>
+                          );
+                        } else if (column.type === 'select' && column.options) {
+                          return (
+                            <Select 
+                              value={filters[column.id] || '__all__'} 
+                              onValueChange={(value) => setFilters(prev => ({
                                 ...prev,
-                                [`${column.id}_min`]: e.target.value
+                                [column.id]: value === '__all__' ? '' : value
                               }))}
-                              className="flex-1"
-                            />
-                            <Input
-                              type="number" 
-                              placeholder="最大值"
-                              value={filters[`${column.id}_max`] || ''}
-                              onChange={(e) => setFilters(prev => ({
-                                ...prev,
-                                [`${column.id}_max`]: e.target.value
-                              }))}
-                              className="flex-1"
-                            />
-                          </div>
-                        );
-                      } else if (column.type === 'date') {
-                        return (
-                          <div className="flex gap-2">
-                            <Input
-                              type="date"
-                              placeholder="起始日期"
-                              value={filters[`${column.id}_start`] || ''}
-                              onChange={(e) => setFilters(prev => ({
-                                ...prev,
-                                [`${column.id}_start`]: e.target.value
-                              }))}
-                              className="flex-1"
-                            />
-                            <Input
-                              type="date"
-                              placeholder="結束日期"
-                              value={filters[`${column.id}_end`] || ''}
-                              onChange={(e) => setFilters(prev => ({
-                                ...prev,
-                                [`${column.id}_end`]: e.target.value
-                              }))}
-                              className="flex-1"
-                            />
-                          </div>
-                        );
-                      } else {
-                        // 預設為文字搜尋（適用於 text, email, phone, url, file）
-                        return (
-                          <Input
-                            id={`filter-${column.id}`}
-                            placeholder={`篩選 ${column.name}...`}
-                            value={filters[column.id] || ''}
-                            onChange={(e) => setFilters(prev => ({
-                              ...prev,
-                              [column.id]: e.target.value
-                            }))}
-                            type={
-                              column.type === 'email' ? 'email' :
-                              column.type === 'phone' ? 'tel' :
-                              column.type === 'url' ? 'url' : 'text'
-                            }
-                          />
-                        );
-                      }
-                    })()}
+                            >
+                              <SelectTrigger className="h-10">
+                                <SelectValue placeholder="選擇選項" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="__all__">
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-3 h-3 rounded border bg-muted" />
+                                    全部
+                                  </div>
+                                </SelectItem>
+                                {column.options.map((option, index) => (
+                                  <SelectItem key={option} value={option}>
+                                    <div className="flex items-center gap-2">
+                                      <div className={`w-3 h-3 rounded border ${getOptionColor(option, index)}`} />
+                                      {option}
+                                    </div>
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          );
+                        } else if (column.type === 'number') {
+                          return (
+                            <div className="space-y-2">
+                              <div className="text-xs text-muted-foreground">數值範圍</div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-muted-foreground">最小值</Label>
+                                  <Input
+                                    type="number"
+                                    placeholder="0"
+                                    value={filters[`${column.id}_min`] || ''}
+                                    onChange={(e) => setFilters(prev => ({
+                                      ...prev,
+                                      [`${column.id}_min`]: e.target.value
+                                    }))}
+                                    className="h-10"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-muted-foreground">最大值</Label>
+                                  <Input
+                                    type="number" 
+                                    placeholder="999"
+                                    value={filters[`${column.id}_max`] || ''}
+                                    onChange={(e) => setFilters(prev => ({
+                                      ...prev,
+                                      [`${column.id}_max`]: e.target.value
+                                    }))}
+                                    className="h-10"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        } else if (column.type === 'date') {
+                          return (
+                            <div className="space-y-2">
+                              <div className="text-xs text-muted-foreground">日期範圍</div>
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-muted-foreground">起始日期</Label>
+                                  <Input
+                                    type="date"
+                                    value={filters[`${column.id}_start`] || ''}
+                                    onChange={(e) => setFilters(prev => ({
+                                      ...prev,
+                                      [`${column.id}_start`]: e.target.value
+                                    }))}
+                                    className="h-10"
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-xs text-muted-foreground">結束日期</Label>
+                                  <Input
+                                    type="date"
+                                    value={filters[`${column.id}_end`] || ''}
+                                    onChange={(e) => setFilters(prev => ({
+                                      ...prev,
+                                      [`${column.id}_end`]: e.target.value
+                                    }))}
+                                    className="h-10"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        } else {
+                          // 預設為文字搜尋（適用於 text, email, phone, url, file）
+                          return (
+                            <div className="space-y-1">
+                              <Input
+                                id={`filter-${column.id}`}
+                                placeholder={`搜尋 ${column.name}...`}
+                                value={filters[column.id] || ''}
+                                onChange={(e) => setFilters(prev => ({
+                                  ...prev,
+                                  [column.id]: e.target.value
+                                }))}
+                                type={
+                                  column.type === 'email' ? 'email' :
+                                  column.type === 'phone' ? 'tel' :
+                                  column.type === 'url' ? 'url' : 'text'
+                                }
+                                className="h-10"
+                              />
+                            </div>
+                          );
+                        }
+                      })()}
+                    </div>
                   </div>
                 ))}
-                <div className="flex gap-2 pt-2">
-                  <Button onClick={clearFilters} variant="outline" className="flex-1">
+                </div>
+              </div>
+              
+              {/* 底部按鈕區域 - 固定在底部 */}
+              <div className="flex-shrink-0 border-t border-border p-4">
+                <div className="flex gap-3">
+                  <Button 
+                    onClick={clearFilters} 
+                    variant="outline" 
+                    className="flex-1 h-11"
+                    disabled={Object.values(filters).every(v => !v)}
+                  >
+                    <X className="w-4 h-4 mr-2" />
                     清除篩選
                   </Button>
-                  <Button onClick={() => setIsFilterOpen(false)} className="flex-1">
+                  <Button 
+                    onClick={() => setIsFilterOpen(false)} 
+                    className="flex-1 h-11"
+                  >
+                    <CheckSquare className="w-4 h-4 mr-2" />
                     套用篩選
                   </Button>
                 </div>
@@ -908,14 +1150,25 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
             </DialogContent>
           </Dialog>
 
-          {/* 清除所有篩選 */}
-          {(searchTerm || Object.values(filters).some(Boolean)) && (
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              <X className="w-4 h-4 mr-2" />
-              清除全部
-            </Button>
-          )}
+          {/* 清除篩選和排序 */}
+          <div className="flex items-center gap-2">
+            {(searchTerm || Object.values(filters).some(Boolean)) && (
+              <Button variant="ghost" size="sm" onClick={clearFilters} className="h-10">
+                <X className="w-4 h-4 mr-2" />
+                清除篩選
+              </Button>
+            )}
+            
+            {sortConfig && (
+              <Button variant="ghost" size="sm" onClick={() => setSortConfig(null)} className="h-10">
+                <ArrowUp className="w-4 h-4 mr-1 rotate-45" />
+                <ArrowDown className="w-4 h-4 mr-2 -ml-2 rotate-45" />
+                清除排序
+              </Button>
+            )}
+          </div>
         </div>
+      </div>
 
         {/* 作用中的篩選顯示 */}
         {(searchTerm || Object.values(filters).some(Boolean)) && (
@@ -1028,7 +1281,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                 <Dialog open={isBatchEditOpen} onOpenChange={setIsBatchEditOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm">
-                      <Pencil className="w-4 h-4 mr-2" />
+                      <Edit className="w-4 h-4 mr-2" />
                       批量編輯
                     </Button>
                   </DialogTrigger>
@@ -1131,7 +1384,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                 </Button>
 
                 <Button variant="destructive" size="sm" onClick={batchDelete}>
-                  <Trash className="w-4 h-4 mr-2" />
+                  <Trash2 className="w-4 h-4 mr-2" />
                   刪除選中
                 </Button>
               </div>
@@ -1237,13 +1490,13 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
       </div>
 
       <div className="border border-border rounded-lg overflow-hidden">
-        <div className="overflow-x-auto">
+        <div className="overflow-auto">
           <DndContext 
             sensors={sensors}
             collisionDetection={closestCenter}
             onDragEnd={handleDragEnd}
           >
-            <table className="w-full">
+            <table className="w-full min-w-full border-collapse">
               <thead className="bg-muted/50">
                 <tr>
                   <th className="w-12 p-3">
@@ -1274,6 +1527,9 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                         onSort={handleSort}
                         onDelete={deleteColumn}
                         onUpdateColumn={updateColumn}
+                        columnWidth={columnWidths[column.id]}
+                        onResizeStart={handleResizeStart}
+                        resizingColumn={resizingColumn}
                       />
                     ))}
                   </SortableContext>
@@ -1298,7 +1554,14 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                       </div>
                     </td>
                     {table.columns.map((column) => (
-                      <td key={column.id} className="border-r border-border last:border-r-0">
+                      <td 
+                        key={column.id} 
+                        className="border-r border-border last:border-r-0"
+                        style={{
+                          width: columnWidths[column.id] ? `${columnWidths[column.id]}px` : 'auto',
+                          minWidth: '120px'
+                        }}
+                      >
                         {renderCell(row, column)}
                       </td>
                     ))}
@@ -1309,7 +1572,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                         className="opacity-0 group-hover:opacity-100 transition-opacity p-1 h-auto"
                         onClick={() => deleteRow(row.id)}
                       >
-                        <Trash className="w-3 h-3" />
+                        <Trash2 className="w-3 h-3" />
                       </Button>
                     </td>
                   </tr>
@@ -1318,7 +1581,7 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
                   <tr>
                     <td colSpan={table.columns.length + 2} className="p-8 text-center text-muted-foreground">
                       <div className="space-y-2">
-                        <MagnifyingGlass className="w-8 h-8 mx-auto text-muted-foreground/50" />
+                        <Search className="w-8 h-8 mx-auto text-muted-foreground/50" />
                         <p>找不到符合條件的資料</p>
                         <Button variant="outline" size="sm" onClick={clearFilters}>
                           清除篩選條件
@@ -1336,6 +1599,19 @@ export function DataTable({ table, onUpdateTable }: DataTableProps) {
               </tbody>
             </table>
           </DndContext>
+        </div>
+        
+        {/* 表格底部新增行按鈕 */}
+        <div className="p-4 border-t border-border bg-muted/30">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={addRow}
+            className="w-full"
+          >
+            <Plus className="w-4 h-4 mr-2" />
+            新增行
+          </Button>
         </div>
       </div>
     </div>
