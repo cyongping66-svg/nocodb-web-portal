@@ -13,8 +13,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # 配置
-DOCKER_USERNAME="clark640"
-TAG="250826"
+DOCKER_USERNAME="ddrenn"
+TAG="20250921"
 FRONTEND_IMAGE="${DOCKER_USERNAME}/nocodb-frontend:${TAG}"
 BACKEND_IMAGE="${DOCKER_USERNAME}/nocodb-backend:${TAG}"
 
