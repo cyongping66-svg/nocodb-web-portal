@@ -1,3 +1,5 @@
+///這個前端文件控制卡片形式的數據顯示和交互功能
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,6 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Plus, Edit, Trash2, File, Link, Mail, Phone, Search, Filter, X, CheckSquare, Square, Download, Copy } from 'lucide-react';
 import { Table, Row } from '@/types';
 import { toast } from 'sonner';
+import * as XLSX from 'xlsx';
 
 // 為選項生成一致的顏色
 const getOptionColor = (option: string, index: number) => {
@@ -217,23 +220,43 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
     }
 
     const selectedRowsData = table.rows.filter(row => selectedRows.has(row.id));
-    const exportData = {
-      tableName: table.name,
-      columns: table.columns,
-      rows: selectedRowsData,
-      exportedAt: new Date().toISOString(),
-      totalRows: selectedRowsData.length
-    };
+    
+    // 准备表头数据
+    const headers = table.columns.map(col => col.name);
+    
+    // 准备行数据
+    const rows = selectedRowsData.map(row => {
+      const rowData: any = {};
+      table.columns.forEach(col => {
+        rowData[col.name] = row[col.id];
+      });
+      return rowData;
+    });
 
-    const dataStr = JSON.stringify(exportData, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${table.name}-selected-${new Date().toISOString().split('T')[0]}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success(`已匯出 ${selectedRows.size} 筆資料`);
+    // 创建工作表
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows.map(row => 
+      headers.map(header => {
+        const value = row[header];
+        // 处理特殊类型数据
+        if (value && typeof value === 'object') {
+          if (value.name) {
+            // 文件类型数据
+            return value.name;
+          }
+          // 其他对象类型数据
+          return JSON.stringify(value);
+        }
+        return value;
+      })
+    )]);
+
+    // 创建工作簿
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, table.name.substring(0, 31)); // Excel工作表名称限制为31个字符
+
+    // 导出文件
+    XLSX.writeFile(wb, `${table.name}-selected-${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast.success(`已匯出 ${selectedRows.size} 筆Excel資料`);
   };
 
   const batchDuplicate = () => {
@@ -606,7 +629,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
                             }))}
                           >
                             <SelectTrigger>
-                              <SelectValue placeholder="選擇布林值" />
+                              <SelectValue placeholder="選擇勾選框" />
                             </SelectTrigger>
                             <SelectContent>
                               <SelectItem value="__all__">全部</SelectItem>
@@ -938,12 +961,12 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
 
                 <Button variant="outline" size="sm" onClick={batchDuplicate}>
                   <Copy className="w-4 h-4 mr-2" />
-                  複製
+                  批量複製
                 </Button>
 
                 <Button variant="outline" size="sm" onClick={batchExport}>
                   <Download className="w-4 h-4 mr-2" />
-                  匯出選中
+                  批量匯出
                 </Button>
 
                 <Button variant="destructive" size="sm" onClick={batchDelete}>

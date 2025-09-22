@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Plus, Table as TableIcon, SquaresFour, Download } from '@phosphor-icons/react';
+import { Plus, Edit, Trash2, ArrowUp, ArrowDown, GripVertical, Link, File, Mail, Phone, Search, Filter, X, CheckSquare, Square, Download as DownloadIcon, Copy, Table as TableIcon, Grid3X3 } from 'lucide-react';
 import { toast, Toaster } from 'sonner';
 import { Table, ViewMode } from '@/types';
 import { TableManager } from '@/components/TableManager';
@@ -245,8 +245,8 @@ function App() {
                   <h2 className="text-lg font-semibold text-foreground">{activeTable.name}</h2>
                   <div className="flex items-center gap-2">
                     <Button variant="outline" size="sm" onClick={exportData}>
-                      <Download className="w-4 h-4 mr-2" />
-                      匯出
+                      <DownloadIcon className="w-4 h-4 mr-2" />
+                      匯出EXCEL
                     </Button>
                     <Tabs value={viewMode} onValueChange={(value) => setViewMode(value as ViewMode)}>
                       <TabsList>
@@ -254,7 +254,7 @@ function App() {
                           <TableIcon className="w-4 h-4" />
                         </TabsTrigger>
                         <TabsTrigger value="card">
-                          <SquaresFour className="w-4 h-4" />
+                          <Grid3X3 className="w-4 h-4" />
                         </TabsTrigger>
                       </TabsList>
                     </Tabs>
