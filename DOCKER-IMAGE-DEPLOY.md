@@ -3,8 +3,8 @@
 ## 📋 部署方式說明
 
 這個項目使用 **預構建 Docker 鏡像** 的方式部署，包含兩個鏡像：
-- `clark640/nocodb-frontend:250826` - 前端 React 應用
-- `clark640/nocodb-backend:250826` - 後端 Node.js API
+- `ddrenn/nocodb-frontend:250921` - 前端 React 應用
+- `ddrenn/nocodb-backend:250921` - 後端 Node.js API
 
 ## 🏗️ 步驟一：本地構建和推送鏡像
 
@@ -52,11 +52,11 @@ chmod +x deploy-from-images.sh
 ```yaml
 services:
   backend:
-    image: clark640/nocodb-backend:250826
+    image: ddrenn/nocodb-backend:250921
     # ... 其他配置
 
   frontend:
-    image: clark640/nocodb-frontend:250826
+    image: ddrenn/nocodb-frontend:250921
     # ... 其他配置
 ```
 
@@ -79,7 +79,7 @@ docker-compose logs frontend
 
 # 重啟服務
 docker-compose restart
-
+clark640
 # 更新到新版本鏡像
 docker-compose pull
 docker-compose up -d

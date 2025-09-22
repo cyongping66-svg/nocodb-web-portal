@@ -3,7 +3,7 @@ version: '3.8'
 services:
   # 後端 API 服務器
   backend:
-    image: clark640/nocodb-backend:250826
+    image: ddrenn/nocodb-backend:250921
     container_name: nocodb-api
     restart: unless-stopped
     environment:
@@ -23,7 +23,7 @@ services:
 
   # 前端 Web 應用
   frontend:
-    image: clark640/nocodb-frontend:250826
+    image: ddrenn/nocodb-frontend:250921
     container_name: nocodb-web
     restart: unless-stopped
     ports:
