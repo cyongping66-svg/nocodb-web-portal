@@ -345,9 +345,9 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
         return cellValue === filterValue;
       } else {
         // 文字類型篩選
-        if (cellValue && typeof value === 'object' && value.name) {
+        if (cellValue && typeof cellValue === 'object' && (cellValue as any).name) {
           // 對於檔案類型，篩選檔案名稱
-          return value.name.toLowerCase().includes(filterValue.toLowerCase());
+          return (cellValue as any).name.toLowerCase().includes(filterValue.toLowerCase());
         }
         return String(cellValue || '').toLowerCase().includes(filterValue.toLowerCase());
       }
@@ -370,26 +370,63 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
           </div>
         );
       case 'select':
-        return (
-          <div className="space-y-2">
-            <Label htmlFor={inputId}>{column.name}</Label>
-            <Select value={String(value || '')} onValueChange={onChange}>
-              <SelectTrigger>
-                <SelectValue placeholder={`選擇${column.name.toLowerCase()}`} />
-              </SelectTrigger>
-              <SelectContent>
-                {column.options?.map((option: string, index: number) => (
-                  <SelectItem key={option} value={option}>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded border ${getOptionColor(option, index)}`} />
+        if (column.isMultiSelect) {
+          // 多选输入
+          return (
+            <div className="space-y-2">
+              <Label>{column.name}</Label>
+              <div className="flex flex-wrap gap-2">
+                {column.options?.map((option: string, index: number) => {
+                  const currentValue = Array.isArray(value) ? value : [];
+                  const isSelected = currentValue.includes(option);
+                  const colorClass = getOptionColor(option, index);
+                  
+                  return (
+                    <button
+                      key={option}
+                      type="button"
+                      className={`inline-flex items-center px-3 py-1 rounded-md text-sm font-medium border transition-all ${
+                        isSelected 
+                          ? `${colorClass} ring-2 ring-offset-2 ring-ring` 
+                          : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                      }`}
+                      onClick={() => {
+                        const newValues = isSelected
+                          ? currentValue.filter((val: string) => val !== option)
+                          : [...currentValue, option];
+                        onChange(newValues);
+                      }}
+                    >
                       {option}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        );
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        } else {
+          // 单选下拉框
+          return (
+            <div className="space-y-2">
+              <Label htmlFor={inputId}>{column.name}</Label>
+              <Select value={String(value || '')} onValueChange={onChange}>
+                <SelectTrigger>
+                  <SelectValue placeholder={`選擇${column.name.toLowerCase()}`} />
+                </SelectTrigger>
+                <SelectContent>
+                  {column.options?.map((option: string, index: number) => (
+                    <SelectItem key={option} value={option}>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded border ${getOptionColor(option, index)}`} />
+                        {option}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          );
+        }
       case 'number':
         return (
           <div className="space-y-2">
@@ -574,15 +611,43 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
           return <span className="text-sm">{String(value)}</span>;
         }
       case 'select':
-        if (!value) return <span className="text-sm text-muted-foreground">無選項</span>;
-        const optionIndex = column.options?.indexOf(value) || 0;
-        const colorClass = getOptionColor(value, optionIndex);
-        
-        return (
-          <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${colorClass}`}>
-            {value}
-          </span>
-        );
+        if (column.isMultiSelect) {
+          // 多选显示
+          if (Array.isArray(value)) {
+            return (
+              <div className="flex flex-wrap gap-1">
+                {value.map((val, index) => {
+                  const optionIndex = column.options?.indexOf(val) || 0;
+                  const colorClass = getOptionColor(val, optionIndex);
+                  return (
+                    <span 
+                      key={index} 
+                      className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${colorClass}`}
+                    >
+                      {val}
+                    </span>
+                  );
+                })}
+              </div>
+            );
+          } else {
+            return <span className="text-sm text-muted-foreground italic">无效值</span>;
+          }
+        } else {
+          // 单选显示
+          if (value && column.options?.includes(value)) {
+            const optionIndex = column.options?.indexOf(value) || 0;
+            const colorClass = getOptionColor(value, optionIndex);
+            
+            return (
+              <span className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${colorClass}`}>
+                {value}
+              </span>
+            );
+          } else {
+            return <span className="text-sm text-muted-foreground italic">無選項</span>;
+          }
+        }
       default:
         return <span className="text-sm">{String(value || '')}</span>;
     }

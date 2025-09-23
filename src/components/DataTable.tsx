@@ -238,7 +238,7 @@ export function DataTable({
   onDeleteRow 
 }: DataTableProps) {
   const [editingCell, setEditingCell] = useState<{ rowId: string; columnId: string } | null>(null);
-  const [editValue, setEditValue] = useState('');
+  const [editValue, setEditValue] = useState<string | any[]>('');
   const [selectOpen, setSelectOpen] = useState(false);
   const [isAddColumnOpen, setIsAddColumnOpen] = useState(false);
   const [newColumn, setNewColumn] = useState({ name: '', type: 'text' as Column['type'], options: [''], isMultiSelect: false });
@@ -427,7 +427,13 @@ export function DataTable({
 
   const startEdit = (rowId: string, columnId: string, currentValue: any) => {
     setEditingCell({ rowId, columnId });
-    setEditValue(String(currentValue || ''));
+    // 对于多选字段，直接使用数组值，否则转换为字符串
+    const column = table.columns.find(col => col.id === columnId);
+    if (column?.type === 'select' && column.isMultiSelect) {
+      setEditValue(Array.isArray(currentValue) ? currentValue : (currentValue ? [currentValue] : []));
+    } else {
+      setEditValue(String(currentValue || ''));
+    }
   };
 
   const saveEdit = () => {
@@ -438,9 +444,12 @@ export function DataTable({
 
     let processedValue: any = editValue;
     if (column.type === 'number') {
-      processedValue = parseFloat(editValue) || 0;
+      processedValue = parseFloat(editValue as string) || 0;
     } else if (column.type === 'boolean') {
       processedValue = editValue === 'true';
+    } else if (column.type === 'select' && column.isMultiSelect) {
+      // 对于多选字段，保持数组格式
+      processedValue = Array.isArray(editValue) ? editValue : (editValue ? [editValue] : []);
     }
 
     // 獲取要更新的行
@@ -763,43 +772,127 @@ export function DataTable({
           />
         );
       } else if (column.type === 'select' && column.options) {
-        return (
-          <div className="w-full" onClick={(e) => e.stopPropagation()}>
-            <Select 
-              value={editValue || ''} 
-              open={selectOpen}
-              onOpenChange={setSelectOpen}
-              onValueChange={(val) => {
-                setEditValue(val);
-                // 立即更新數據並結束編輯
-                const updatedRows: Row[] = table.rows.map(row =>
-                  row.id === editingCell?.rowId
-                    ? { ...row, [editingCell.columnId]: val }
-                    : row
-                );
-                onUpdateTable({ ...table, rows: updatedRows });
-                setEditingCell(null);
-                setEditValue('');
-                setSelectOpen(false);
-                toast.success('選項已更新');
-              }}
-            >
-              <SelectTrigger className="h-8 w-full">
-                <SelectValue placeholder="請選擇選項" />
-              </SelectTrigger>
-              <SelectContent>
-                {column.options.map((option, index) => (
-                  <SelectItem key={option} value={option}>
-                    <div className="flex items-center gap-2">
-                      <div className={`w-3 h-3 rounded border ${getOptionColor(option, index)}`} />
-                      {option}
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        );
+        if (column.isMultiSelect) {
+          // 多选下拉框
+          return (
+            <div className="w-full" onClick={(e) => e.stopPropagation()}>
+              <Select 
+                value={Array.isArray(editValue) && (editValue as any[]).length > 0 ? (editValue as any[])[0] : ''} 
+                open={selectOpen}
+                onOpenChange={(open) => {
+                  // 只有在关闭时才更新状态
+                  if (!open) {
+                    setSelectOpen(false);
+                  } else {
+                    setSelectOpen(true);
+                  }
+                }}
+                onValueChange={(val) => {
+                  // 多选情况下，处理数组值
+                  const currentValues = Array.isArray(editValue) ? editValue as any[] : [];
+                  const newValues = currentValues.includes(val)
+                    ? currentValues.filter(v => v !== val)
+                    : [...currentValues, val];
+                  setEditValue(newValues);
+                }}
+              >
+                <SelectTrigger className="h-8 w-full">
+                  <SelectValue placeholder="請選擇選項">
+                    {Array.isArray(editValue) && (editValue as any[]).length > 0
+                      ? `${(editValue as any[]).length} 個選項已選擇`
+                      : '請選擇選項'}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {column.options.map((option, index) => {
+                    const isSelected = Array.isArray(editValue) && (editValue as any[]).includes(option);
+                    return (
+                      <SelectItem key={option} value={option}>
+                        <div className="flex items-center gap-2">
+                          <div className={`w-3 h-3 rounded border ${getOptionColor(option, index)} ${isSelected ? 'ring-2 ring-ring ring-offset-1' : ''}`} />
+                          {option}
+                          {isSelected && (
+                            <CheckSquare className="w-4 h-4 text-primary" />
+                          )}
+                        </div>
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              <div className="flex justify-between mt-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => {
+                    setEditingCell(null);
+                    setEditValue('');
+                    setSelectOpen(false);
+                  }}
+                >
+                  取消
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    // 保存多选值
+                    const updatedRows: Row[] = table.rows.map(row =>
+                      row.id === editingCell?.rowId
+                        ? { ...row, [editingCell.columnId]: editValue }
+                        : row
+                    );
+                    onUpdateTable({ ...table, rows: updatedRows });
+                    setEditingCell(null);
+                    setEditValue('');
+                    setSelectOpen(false);
+                    toast.success('選項已更新');
+                  }}
+                >
+                  確定
+                </Button>
+              </div>
+            </div>
+          );
+        } else {
+          // 单选下拉框
+          return (
+            <div className="w-full" onClick={(e) => e.stopPropagation()}>
+              <Select 
+                value={editValue as string || ''} 
+                open={selectOpen}
+                onOpenChange={setSelectOpen}
+                onValueChange={(val) => {
+                  setEditValue(val);
+                  // 立即更新數據並結束編輯
+                  const updatedRows: Row[] = table.rows.map(row =>
+                    row.id === editingCell?.rowId
+                      ? { ...row, [editingCell.columnId]: val }
+                      : row
+                  );
+                  onUpdateTable({ ...table, rows: updatedRows });
+                  setEditingCell(null);
+                  setEditValue('');
+                  setSelectOpen(false);
+                  toast.success('選項已更新');
+                }}
+              >
+                <SelectTrigger className="h-8 w-full">
+                  <SelectValue placeholder="請選擇選項" />
+                </SelectTrigger>
+                <SelectContent>
+                  {column.options.map((option, index) => (
+                    <SelectItem key={option} value={option}>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded border ${getOptionColor(option, index)}`} />
+                        {option}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          );
+        }
       } else if (column.type === 'file') {
         return (
           <Input
@@ -900,8 +993,26 @@ export function DataTable({
           </div>
         );
       } else if (column.type === 'select' && column.options) {
-        if (value && column.options.includes(value)) {
-          // 為選項類型添加顏色標籤
+        if (column.isMultiSelect && Array.isArray(value)) {
+          // 多选显示
+          return (
+            <div className="flex flex-wrap gap-1 p-2">
+              {value.map((val, index) => {
+                const optionIndex = column.options?.indexOf(val) || 0;
+                const colorClass = getOptionColor(val, optionIndex);
+                return (
+                  <span 
+                    key={index} 
+                    className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium border ${colorClass}`}
+                  >
+                    {val}
+                  </span>
+                );
+              })}
+            </div>
+          );
+        } else if (!column.isMultiSelect && value && column.options.includes(value)) {
+          // 单选显示
           const optionIndex = column.options.indexOf(value);
           const colorClass = getOptionColor(value, optionIndex);
           
@@ -912,7 +1023,7 @@ export function DataTable({
           );
         } else {
           // 如果没有值或值不在选项中，显示占位符
-          return <span className="text-sm text-muted-foreground italic">請選擇選項</span>;
+          return <span className="text-sm text-muted-foreground italic p-2">請選擇選項</span>;
         }
       } else if (column.type === 'date') {
         if (!value) return <span className="text-muted-foreground">無日期</span>;
