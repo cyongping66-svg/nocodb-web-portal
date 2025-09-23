@@ -241,7 +241,7 @@ export function DataTable({
   const [editValue, setEditValue] = useState('');
   const [selectOpen, setSelectOpen] = useState(false);
   const [isAddColumnOpen, setIsAddColumnOpen] = useState(false);
-  const [newColumn, setNewColumn] = useState({ name: '', type: 'text' as Column['type'], options: [''] });
+  const [newColumn, setNewColumn] = useState({ name: '', type: 'text' as Column['type'], options: [''], isMultiSelect: false });
   const [sortConfig, setSortConfig] = useState<{ key: string; direction: 'asc' | 'desc' } | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState<{ [columnId: string]: string }>({});
@@ -332,7 +332,8 @@ export function DataTable({
       id: Date.now().toString(),
       name: newColumn.name.trim(),
       type: newColumn.type,
-      options: newColumn.type === 'select' ? newColumn.options.filter(opt => opt.trim()) : undefined
+      options: newColumn.type === 'select' ? newColumn.options.filter(opt => opt.trim()) : undefined,
+      isMultiSelect: newColumn.isMultiSelect
     };
 
     onUpdateTable({
@@ -340,7 +341,7 @@ export function DataTable({
       columns: [...table.columns, column]
     });
 
-    setNewColumn({ name: '', type: 'text', options: [''] });
+    setNewColumn({ name: '', type: 'text', options: [''], isMultiSelect: false });
     setIsAddColumnOpen(false);
     toast.success('欄位新增成功');
   };
@@ -827,7 +828,7 @@ export function DataTable({
             className="h-8"
             type={
               column.type === 'number' ? 'number' :
-              column.type === 'date' ? 'date' :
+              column.type === 'date' ? 'datetime-local' :
               column.type === 'email' ? 'email' :
               column.type === 'phone' ? 'tel' :
               column.type === 'url' ? 'url' : 'text'
@@ -912,6 +913,24 @@ export function DataTable({
         } else {
           // 如果没有值或值不在选项中，显示占位符
           return <span className="text-sm text-muted-foreground italic">請選擇選項</span>;
+        }
+      } else if (column.type === 'date') {
+        if (!value) return <span className="text-muted-foreground">無日期</span>;
+        // 格式化日期时间显示为24小时制
+        try {
+          const date = new Date(value);
+          if (isNaN(date.getTime())) {
+            return <span>{String(value)}</span>;
+          }
+          // 使用24小时制格式显示日期时间，日期和时间之间保持一定距离
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const hours = String(date.getHours()).padStart(2, '0');
+          const minutes = String(date.getMinutes()).padStart(2, '0');
+          return <span>{`${year}/${month}/${day}  ${hours}:${minutes}`}</span>;
+        } catch {
+          return <span>{String(value)}</span>;
         }
       } else {
         return <span className="text-sm">{String(value || '')}</span>;
@@ -1472,31 +1491,43 @@ export function DataTable({
                   </Select>
                 </div>
                 {newColumn.type === 'select' && (
-                  <div>
-                    <Label>選項</Label>
-                    {newColumn.options.map((option, index) => (
-                      <div key={index} className="flex gap-2 mt-2">
-                        <Input
-                          value={option}
-                          onChange={(e) => {
-                            const newOptions = [...newColumn.options];
-                            newOptions[index] = e.target.value;
-                            setNewColumn({ ...newColumn, options: newOptions });
-                          }}
-                          placeholder={`選項 ${index + 1}`}
-                        />
-                        {index === newColumn.options.length - 1 && (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setNewColumn({ ...newColumn, options: [...newColumn.options, ''] })}
-                          >
-                            <Plus className="w-4 h-4" />
-                          </Button>
-                        )}
-                      </div>
-                    ))}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id="multi-select" 
+                        checked={newColumn.isMultiSelect}
+                        onCheckedChange={(checked) => 
+                          setNewColumn({ ...newColumn, isMultiSelect: Boolean(checked) })
+                        }
+                      />
+                      <Label htmlFor="multi-select">允許多選</Label>
+                    </div>
+                    <div>
+                      <Label>選項</Label>
+                      {newColumn.options.map((option, index) => (
+                        <div key={index} className="flex gap-2 mt-2">
+                          <Input
+                            value={option}
+                            onChange={(e) => {
+                              const newOptions = [...newColumn.options];
+                              newOptions[index] = e.target.value;
+                              setNewColumn({ ...newColumn, options: newOptions });
+                            }}
+                            placeholder={`選項 ${index + 1}`}
+                          />
+                          {index === newColumn.options.length - 1 && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setNewColumn({ ...newColumn, options: [...newColumn.options, ''] })}
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
                 <Button onClick={addColumn} className="w-full">

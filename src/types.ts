@@ -3,6 +3,7 @@ export interface Column {
   name: string;
   type: 'text' | 'number' | 'date' | 'boolean' | 'select' | 'file' | 'url' | 'email' | 'phone';
   options?: string[];
+  isMultiSelect?: boolean;
 }
 
 export interface Row {

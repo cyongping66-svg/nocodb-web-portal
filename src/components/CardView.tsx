@@ -409,7 +409,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
             <Label htmlFor={inputId}>{column.name}</Label>
             <Input
               id={inputId}
-              type="date"
+              type="datetime-local"
               value={value || ''}
               onChange={(e) => onChange(e.target.value)}
             />
@@ -555,6 +555,24 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
             </a>
           </div>
         );
+      case 'date':
+        if (!value) return <span className="text-sm text-muted-foreground">無日期</span>;
+        // 格式化日期时间显示为24小时制
+        try {
+          const date = new Date(value);
+          if (isNaN(date.getTime())) {
+            return <span className="text-sm">{String(value)}</span>;
+          }
+          // 使用24小时制格式显示日期时间，日期和时间之间保持一定距离
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, '0');
+          const day = String(date.getDate()).padStart(2, '0');
+          const hours = String(date.getHours()).padStart(2, '0');
+          const minutes = String(date.getMinutes()).padStart(2, '0');
+          return <span className="text-sm font-medium">{`${year}/${month}/${day}  ${hours}:${minutes}`}</span>;
+        } catch {
+          return <span className="text-sm">{String(value)}</span>;
+        }
       case 'select':
         if (!value) return <span className="text-sm text-muted-foreground">無選項</span>;
         const optionIndex = column.options?.indexOf(value) || 0;
