@@ -345,13 +345,13 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
         return cellValue === filterValue;
       } else {
         // 文字類型篩選
-        if (cellValue && typeof cellValue === 'object' && cellValue.name) {
+        if (cellValue && typeof value === 'object' && value.name) {
           // 對於檔案類型，篩選檔案名稱
-          return cellValue.name.toLowerCase().includes(filterValue.toLowerCase());
+          return value.name.toLowerCase().includes(filterValue.toLowerCase());
         }
         return String(cellValue || '').toLowerCase().includes(filterValue.toLowerCase());
       }
-    });
+    })
   });
 
   const renderFieldInput = (column: any, value: any, onChange: (value: any) => void, isEditing = false) => {
