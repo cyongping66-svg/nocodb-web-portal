@@ -825,19 +825,18 @@ export function DataTable({
                   size="sm"
                   variant="outline"
                   onClick={() => {
-                    setEditingCell(null);
-                    setEditValue('');
-                    setSelectOpen(false);
+                    // 清除所有选项
+                    setEditValue([]);
                   }}
                 >
-                  取消
+                  清除所有選項
                 </Button>
                 <Button
                   size="sm"
                   onClick={() => {
                     // 保存多选值
                     const updatedRows: Row[] = table.rows.map(row =>
-                      row.id === editingCell?.rowId
+                      editingCell && row.id === editingCell?.rowId
                         ? { ...row, [editingCell.columnId]: editValue }
                         : row
                     );
