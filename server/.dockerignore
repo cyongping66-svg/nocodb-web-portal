@@ -13,5 +13,5 @@ coverage
 .idea
 *.log
 .DS_Store
-# 只排除 SQLite 數據庫文件，但保留 database.js
-db/*.sqlite
+# 只排除 better-sqlite3 數據庫文件，但保留 database.js
+db/*.better-sqlite3

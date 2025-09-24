@@ -1,7 +1,7 @@
 {
   "name": "nocodb-web-portal-server",
   "version": "1.0.0",
-  "description": "Backend API for NocoDB Web Portal",
+  "description": "Backend API for NocoDB Web Portal with SQLite database support",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -9,17 +9,25 @@
     "init-db": "node scripts/init-db.js"
   },
   "dependencies": {
-    "express": "^4.18.2",
+    "better-sqlite3": "^12.4.1",
     "cors": "^2.8.5",
-    "sqlite3": "^5.1.6",
-    "uuid": "^9.0.1",
+    "express": "^4.18.2",
     "helmet": "^7.1.0",
-    "morgan": "^1.10.0"
+    "morgan": "^1.10.0",
+    "uuid": "^9.0.1"
   },
   "devDependencies": {
     "nodemon": "^3.0.2"
   },
-  "keywords": ["api", "database", "express", "sqlite"],
+  "keywords": [
+    "api",
+    "database",
+    "express",
+    "better-sqlite3"
+  ],
   "author": "",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.0.0"
+  }
 }

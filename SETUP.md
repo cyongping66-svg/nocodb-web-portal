@@ -37,12 +37,13 @@
 3. 粘贴到 SQL 编辑器中并执行
 
 #### 第四步：配置环境变量
+#### （我會更傾向使用 better-sqlite3 作为数据库持久化存儲）
 1. 复制项目根目录下的 `.env.example` 文件为 `.env.local`
 2. 编辑 `.env.local` 文件，填入第二步获取的配置：
 ```env
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
-VITE_USE_SUPABASE=true
+VITE_USE_SUPABASE=false
 ```
 
 #### 第五步：重启开发服务器

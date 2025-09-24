@@ -1,20 +1,17 @@
 const express = require('express');
 const router = express.Router();
-const Database = require('../db/database');
+const DatabaseManager = require('../db/database');
 const { v4: uuidv4 } = require('uuid');
 
-const db = new Database();
+const db = new DatabaseManager();
 
 // 獲取表格的所有行
 router.get('/:tableId/rows', (req, res) => {
   const { tableId } = req.params;
 
-  db.getTableRows(tableId, (err, rows) => {
-    if (err) {
-      console.error('Error getting rows:', err);
-      return res.status(500).json({ error: 'Failed to get rows' });
-    }
-
+  try {
+    const rows = db.getTableRows(tableId);
+    
     // 解析數據
     const parsedRows = rows.map(row => {
       const data = JSON.parse(row.data);
@@ -27,7 +24,36 @@ router.get('/:tableId/rows', (req, res) => {
     });
 
     res.json(parsedRows);
-  });
+  } catch (err) {
+    console.error('Error getting rows:', err);
+    return res.status(500).json({ error: 'Failed to get rows' });
+  }
+});
+
+// 獲取單行數據
+router.get('/:tableId/rows/:rowId', (req, res) => {
+  const { tableId, rowId } = req.params;
+
+  try {
+    const row = db.getRowById(tableId, rowId);
+    
+    if (!row) {
+      return res.status(404).json({ error: 'Row not found' });
+    }
+
+    const parsedData = JSON.parse(row.data);
+    const result = {
+      id: row.id,
+      ...parsedData,
+      _createdAt: row.created_at,
+      _updatedAt: row.updated_at
+    };
+
+    res.json(result);
+  } catch (err) {
+    console.error('Error getting row:', err);
+    return res.status(500).json({ error: 'Failed to get row' });
+  }
 });
 
 // 創建新行
@@ -35,50 +61,67 @@ router.post('/:tableId/rows', (req, res) => {
   const { tableId } = req.params;
   const rowData = req.body;
 
-  if (!rowData.id) {
-    rowData.id = uuidv4();
+  try {
+    const newRow = db.createRow(tableId, rowData);
+    
+    const parsedData = JSON.parse(newRow.data);
+    const result = {
+      id: newRow.id,
+      ...parsedData,
+      _createdAt: newRow.created_at,
+      _updatedAt: newRow.updated_at
+    };
+
+    res.status(201).json(result);
+  } catch (err) {
+    console.error('Error creating row:', err);
+    return res.status(500).json({ error: 'Failed to create row' });
   }
-
-  db.createRow(tableId, rowData, (err) => {
-    if (err) {
-      console.error('Error creating row:', err);
-      return res.status(500).json({ error: 'Failed to create row' });
-    }
-
-    res.status(201).json({ message: 'Row created successfully', row: rowData });
-  });
 });
 
-// 更新行
+// 更新行數據
 router.put('/:tableId/rows/:rowId', (req, res) => {
-  const { rowId } = req.params;
+  const { tableId, rowId } = req.params;
   const rowData = req.body;
 
-  // 確保 ID 一致
-  rowData.id = rowId;
-
-  db.updateRow(rowId, rowData, (err) => {
-    if (err) {
-      console.error('Error updating row:', err);
-      return res.status(500).json({ error: 'Failed to update row' });
+  try {
+    const updatedRow = db.updateRow(tableId, rowId, rowData);
+    
+    if (!updatedRow) {
+      return res.status(404).json({ error: 'Row not found' });
     }
 
-    res.json({ message: 'Row updated successfully' });
-  });
+    const parsedData = JSON.parse(updatedRow.data);
+    const result = {
+      id: updatedRow.id,
+      ...parsedData,
+      _createdAt: updatedRow.created_at,
+      _updatedAt: updatedRow.updated_at
+    };
+
+    res.json(result);
+  } catch (err) {
+    console.error('Error updating row:', err);
+    return res.status(500).json({ error: 'Failed to update row' });
+  }
 });
 
 // 刪除行
 router.delete('/:tableId/rows/:rowId', (req, res) => {
-  const { rowId } = req.params;
+  const { tableId, rowId } = req.params;
 
-  db.deleteRow(rowId, (err) => {
-    if (err) {
-      console.error('Error deleting row:', err);
-      return res.status(500).json({ error: 'Failed to delete row' });
+  try {
+    const result = db.deleteRow(tableId, rowId);
+    
+    if (!result) {
+      return res.status(404).json({ error: 'Row not found' });
     }
 
     res.json({ message: 'Row deleted successfully' });
-  });
+  } catch (err) {
+    console.error('Error deleting row:', err);
+    return res.status(500).json({ error: 'Failed to delete row' });
+  }
 });
 
 // 批量操作
@@ -89,19 +132,21 @@ router.post('/:tableId/rows/batch', (req, res) => {
   switch (operation) {
     case 'create':
       // 批量創建
-      const promises = rows.map(rowData => {
+      const createPromises = rows.map(rowData => {
         return new Promise((resolve, reject) => {
           if (!rowData.id) {
             rowData.id = uuidv4();
           }
-          db.createRow(tableId, rowData, (err) => {
-            if (err) reject(err);
-            else resolve(rowData);
-          });
+          try {
+            const result = db.createRow(tableId, rowData);
+            resolve(result);
+          } catch (err) {
+            reject(err);
+          }
         });
       });
 
-      Promise.all(promises)
+      Promise.all(createPromises)
         .then(results => {
           res.status(201).json({ message: 'Rows created successfully', rows: results });
         })
@@ -119,10 +164,12 @@ router.post('/:tableId/rows/batch', (req, res) => {
 
       const deletePromises = rowIds.map(rowId => {
         return new Promise((resolve, reject) => {
-          db.deleteRow(rowId, (err) => {
-            if (err) reject(err);
-            else resolve(rowId);
-          });
+          try {
+            const result = db.deleteRow(rowId);
+            resolve(result);
+          } catch (err) {
+            reject(err);
+          }
         });
       });
 

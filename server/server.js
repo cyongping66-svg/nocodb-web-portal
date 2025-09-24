@@ -3,13 +3,13 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const path = require('path');
-const Database = require('./db/database');
+const DatabaseManager = require('./db/database');
 
 const app = express();
 const port = process.env.PORT || 3003;
 
 // 初始化數據庫
-const db = new Database();
+const db = new DatabaseManager();
 
 // 中間件
 app.use(helmet());

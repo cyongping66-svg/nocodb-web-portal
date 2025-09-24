@@ -1,18 +1,15 @@
 const express = require('express');
 const router = express.Router();
-const Database = require('../db/database');
+const DatabaseManager = require('../db/database');
 const { v4: uuidv4 } = require('uuid');
 
-const db = new Database();
+const db = new DatabaseManager();
 
 // 獲取所有表格
 router.get('/', (req, res) => {
-  db.getTables((err, tables) => {
-    if (err) {
-      console.error('Error getting tables:', err);
-      return res.status(500).json({ error: 'Failed to get tables' });
-    }
-
+  try {
+    const tables = db.getTables();
+    
     // 解析 columns JSON 字串
     const parsedTables = tables.map(table => ({
       ...table,
@@ -20,42 +17,40 @@ router.get('/', (req, res) => {
     }));
 
     res.json(parsedTables);
-  });
+  } catch (err) {
+    console.error('Error getting tables:', err);
+    return res.status(500).json({ error: 'Failed to get tables' });
+  }
 });
 
 // 獲取單個表格（包含行數據）
 router.get('/:tableId', (req, res) => {
   const { tableId } = req.params;
 
-  db.getTable(tableId, (err, table) => {
-    if (err) {
-      console.error('Error getting table:', err);
-      return res.status(500).json({ error: 'Failed to get table' });
-    }
-
+  try {
+    const table = db.getTable(tableId);
+    
     if (!table) {
       return res.status(404).json({ error: 'Table not found' });
     }
 
     // 獲取表格的行數據
-    db.getTableRows(tableId, (err, rows) => {
-      if (err) {
-        console.error('Error getting rows:', err);
-        return res.status(500).json({ error: 'Failed to get rows' });
-      }
+    const rows = db.getTableRows(tableId);
 
-      // 解析數據
-      const parsedRows = rows.map(row => JSON.parse(row.data));
+    // 解析數據
+    const parsedRows = rows.map(row => JSON.parse(row.data));
 
-      const result = {
-        ...table,
-        columns: JSON.parse(table.columns),
-        rows: parsedRows
-      };
+    const result = {
+      ...table,
+      columns: JSON.parse(table.columns),
+      rows: parsedRows
+    };
 
-      res.json(result);
-    });
-  });
+    res.json(result);
+  } catch (err) {
+    console.error('Error getting table:', err);
+    return res.status(500).json({ error: 'Failed to get table' });
+  }
 });
 
 // 創建新表格
@@ -72,14 +67,13 @@ router.post('/', (req, res) => {
     columns
   };
 
-  db.createTable(tableData, (err) => {
-    if (err) {
-      console.error('Error creating table:', err);
-      return res.status(500).json({ error: 'Failed to create table' });
-    }
-
+  try {
+    db.createTable(tableData);
     res.status(201).json({ message: 'Table created successfully', table: tableData });
-  });
+  } catch (err) {
+    console.error('Error creating table:', err);
+    return res.status(500).json({ error: 'Failed to create table' });
+  }
 });
 
 // 更新表格結構
@@ -97,28 +91,32 @@ router.put('/:tableId', (req, res) => {
     columns
   };
 
-  db.updateTable(tableData, (err) => {
-    if (err) {
-      console.error('Error updating table:', err);
-      return res.status(500).json({ error: 'Failed to update table' });
+  try {
+    const result = db.updateTable(tableData);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Table not found' });
     }
-
     res.json({ message: 'Table updated successfully' });
-  });
+  } catch (err) {
+    console.error('Error updating table:', err);
+    return res.status(500).json({ error: 'Failed to update table' });
+  }
 });
 
 // 刪除表格
 router.delete('/:tableId', (req, res) => {
   const { tableId } = req.params;
 
-  db.deleteTable(tableId, (err) => {
-    if (err) {
-      console.error('Error deleting table:', err);
-      return res.status(500).json({ error: 'Failed to delete table' });
+  try {
+    const result = db.deleteTable(tableId);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Table not found' });
     }
-
     res.json({ message: 'Table deleted successfully' });
-  });
+  } catch (err) {
+    console.error('Error deleting table:', err);
+    return res.status(500).json({ error: 'Failed to delete table' });
+  }
 });
 
 module.exports = router;

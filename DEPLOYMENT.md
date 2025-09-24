@@ -9,7 +9,7 @@
 - `PORT`: 服務器端口 (默認: 3002)
 
 - **前端**: React 19 + TypeScript + Vite + Tailwind CSS
-- **後端**: Node.js + Express + SQLite
+- **後端**: Node.js + Express + better-sqlite3
 - **部署**: Docker + Docker Compose
 
 ## 本地開發
