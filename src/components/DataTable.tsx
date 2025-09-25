@@ -608,24 +608,32 @@ export function DataTable({
 // ... existing code ...
 // ... existing code ...
   // ... existing code ...
-  const batchDelete = () => {
+  const batchDelete = async () => {
     console.log('batchDelete called', { selectedRows });
     if (selectedRows.size === 0) {
       toast.error('請選擇要刪除的資料');
       return;
     }
 
-    const updatedRows: Row[] = table.rows.filter(row => !selectedRows.has(row.id));
-    console.log('Rows before delete:', table.rows.length, 'Rows after delete:', updatedRows.length);
-    
-    // 强制创建一个新的数组引用以确保状态更新
-    onUpdateTable({ 
-      ...table, 
-      rows: updatedRows 
-    });
-    
-    setSelectedRows(new Set());
-    toast.success(`已刪除 ${selectedRows.size} 筆資料`);
+    // 调用 API 删除选中的行
+    const rowIdsToDelete = Array.from(selectedRows);
+    try {
+      // 使用 onDeleteRow 回调函数删除每一行
+      if (onDeleteRow) {
+        await Promise.all(
+          rowIdsToDelete.map(rowId => onDeleteRow(table.id, rowId))
+        );
+      } else {
+        // 如果没有 onDeleteRow 回调，则使用 onUpdateTable 更新前端状态
+        const updatedRows: Row[] = table.rows.filter(row => !selectedRows.has(row.id));
+        onUpdateTable({ ...table, rows: updatedRows });
+      }
+      setSelectedRows(new Set());
+      toast.success(`已刪除 ${selectedRows.size} 筆資料`);
+    } catch (error) {
+      console.error('批量删除失败:', error);
+      toast.error('批量删除失败');
+    }
   };
 // ... existing code ...
 // ... existing code ...
