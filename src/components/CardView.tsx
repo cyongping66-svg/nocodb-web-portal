@@ -42,6 +42,9 @@ const getOptionColor = (option: string, index: number) => {
 interface CardViewProps {
   table: Table;
   onUpdateTable: (table: Table) => void;
+  onCreateRow?: (tableId: string, rowData: any) => void;
+  onUpdateRow?: (tableId: string, rowId: string, rowData: any) => void;
+  onDeleteRow?: (tableId: string, rowId: string) => void;
 }
 
 export function CardView({ table, onUpdateTable }: CardViewProps) {
