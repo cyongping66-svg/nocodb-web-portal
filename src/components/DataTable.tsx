@@ -540,7 +540,116 @@ export function DataTable({
     setSelectedRows(newSelected);
   };
 
-  const toggleSelectAll = () => {
+    const toggleSelectAll = () => {
+    // 重新计算排序后的行，避免作用域问题
+    const filteredRows = table.rows.filter(row => {
+      // 搜尋篩選
+      if (searchTerm) {
+        const searchMatch = Object.values(row).some(value => {
+          if (value && typeof value === 'object' && value.name) {
+            // 對於檔案類型，搜尋檔案名稱
+            return value.name.toLowerCase().includes(searchTerm.toLowerCase());
+          }
+          return String(value || '').toLowerCase().includes(searchTerm.toLowerCase());
+        });
+        if (!searchMatch) return false;
+      }
+
+      // 欄位篩選
+      return Object.entries(filters).every(([filterKey, filterValue]) => {
+        if (!filterValue || filterValue === '__all__') return true;
+        
+        // 檢查是否為範圍篩選（數字或日期）
+        if (filterKey.endsWith('_min') || filterKey.endsWith('_max') || 
+            filterKey.endsWith('_start') || filterKey.endsWith('_end')) {
+          const columnId = filterKey.replace(/_min|_max|_start|_end$/, '');
+          const column = table.columns.find(col => col.id === columnId);
+          const cellValue = row[columnId];
+          
+          if (!column || cellValue === null || cellValue === undefined) return true;
+          
+          if (column.type === 'number') {
+            const numValue = parseFloat(cellValue);
+            if (isNaN(numValue)) return true;
+            
+            if (filterKey.endsWith('_min')) {
+              const minValue = parseFloat(filterValue);
+              return isNaN(minValue) || numValue >= minValue;
+            } else if (filterKey.endsWith('_max')) {
+              const maxValue = parseFloat(filterValue);
+              return isNaN(maxValue) || numValue <= maxValue;
+            }
+          } else if (column.type === 'date') {
+            const dateValue = new Date(cellValue);
+            const filterDate = new Date(filterValue);
+            
+            if (isNaN(dateValue.getTime()) || isNaN(filterDate.getTime())) return true;
+            
+            if (filterKey.endsWith('_start')) {
+              return dateValue >= filterDate;
+            } else if (filterKey.endsWith('_end')) {
+              return dateValue <= filterDate;
+            }
+          }
+          
+          return true;
+        }
+        
+        // 一般篩選
+        const cellValue = row[filterKey];
+        const column = table.columns.find(col => col.id === filterKey);
+        
+        if (!column) return true;
+        
+        if (column.type === 'boolean') {
+          return String(cellValue) === filterValue;
+        } else if (column.type === 'select') {
+          return cellValue === filterValue;
+        } else {
+          // 文字類型篩選
+          if (cellValue && typeof cellValue === 'object' && cellValue.name) {
+            // 對於檔案類型，篩選檔案名稱
+            return cellValue.name.toLowerCase().includes(filterValue.toLowerCase());
+          }
+          return String(cellValue || '').toLowerCase().includes(filterValue.toLowerCase());
+        }
+      });
+    });
+
+    // 计算排序后的行
+    const sortedRows = [...filteredRows];
+    if (sortConfig) {
+      sortedRows.sort((a, b) => {
+        const aVal = a[sortConfig.key];
+        const bVal = b[sortConfig.key];
+        
+        // 找到對應的欄位以獲取類型信息
+        const column = table.columns.find(col => col.id === sortConfig.key);
+        
+        // 根據欄位類型進行不同的排序處理
+        if (column?.type === 'number') {
+          const numA = Number(aVal) || 0;
+          const numB = Number(bVal) || 0;
+          return sortConfig.direction === 'asc' ? numA - numB : numB - numA;
+        } else if (column?.type === 'date') {
+          const dateA = new Date(aVal || 0).getTime();
+          const dateB = new Date(bVal || 0).getTime();
+          return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
+        } else if (column?.type === 'boolean') {
+          const boolA = aVal === true ? 1 : 0;
+          const boolB = bVal === true ? 1 : 0;
+          return sortConfig.direction === 'asc' ? boolA - boolB : boolB - boolA;
+        } else {
+          // 字符串類型的排序
+          const strA = String(aVal || '').toLowerCase();
+          const strB = String(bVal || '').toLowerCase();
+          if (strA < strB) return sortConfig.direction === 'asc' ? -1 : 1;
+          if (strA > strB) return sortConfig.direction === 'asc' ? 1 : -1;
+          return 0;
+        }
+      });
+    }
+
     if (selectedRows.size === sortedRows.length && sortedRows.length > 0) {
       setSelectedRows(new Set());
     } else {
@@ -549,12 +658,7 @@ export function DataTable({
   };
 
  
-
-  // ... existing code ...
-  // ... existing code ...
-  // ... existing code ...
-  // ... existing code ...
-  const batchEdit = () => {
+    const batchEdit = async () => {
     console.log('batchEdit called', { selectedRows, batchEditColumn, batchEditValue });
     if (selectedRows.size === 0) {
       toast.error('請選擇要編輯的資料');
@@ -592,23 +696,39 @@ export function DataTable({
     console.log('Updated rows count:', updatedRows.filter(row => selectedRows.has(row.id)).length);
     
     // 强制创建一个新的数组引用以确保状态更新
-    onUpdateTable({ 
-      ...table, 
-      rows: updatedRows 
-    });
-    
-    setSelectedRows(new Set());
-    setBatchEditColumn('');
-    setBatchEditValue('');
-    setIsBatchEditOpen(false);
-    toast.success(`已更新 ${selectedRows.size} 筆資料`);
+        // 使用 onUpdateRow 回调函数更新每一行，或使用 onUpdateTable 更新前端状态
+    try {
+      if (onUpdateRow) {
+        // 并行更新所有选中的行
+        await Promise.all(
+          table.rows
+            .filter(row => selectedRows.has(row.id))
+            .map(row => {
+              const updatedRowData = { ...row, [batchEditColumn]: processedValue };
+              return onUpdateRow(table.id, row.id, updatedRowData);
+            })
+        );
+      } else {
+        // 如果没有 onUpdateRow 回调，则使用 onUpdateTable 更新前端状态
+        onUpdateTable({ 
+          ...table, 
+          rows: updatedRows 
+        });
+      }
+      
+      setSelectedRows(new Set());
+      setBatchEditColumn('');
+      setBatchEditValue('');
+      setIsBatchEditOpen(false);
+      toast.success(`已更新 ${selectedRows.size} 筆資料`);
+    } catch (error) {
+      console.error('批量编辑失败:', error);
+      toast.error('批量编辑失败');
+    }
   };
-// ... existing code ...
-// ... existing code ...
-// ... existing code ...
-// ... existing code ...
-  // ... existing code ...
-  const batchDelete = async () => {
+
+ 
+    const batchDelete = async () => {
     console.log('batchDelete called', { selectedRows });
     if (selectedRows.size === 0) {
       toast.error('請選擇要刪除的資料');
@@ -635,9 +755,6 @@ export function DataTable({
       toast.error('批量删除失败');
     }
   };
-// ... existing code ...
-// ... existing code ...
-// ... existing code ...
 
   const batchExport = () => {
     if (selectedRows.size === 0) {
@@ -685,10 +802,8 @@ export function DataTable({
     toast.success(`已匯出 ${selectedRows.size} 筆Excel資料`);
   };
 
-  // ... existing code ...
-  // ... existing code ...
-  // ... existing code ...
-  const batchDuplicate = () => {
+  
+    const batchDuplicate = async () => {
     console.log('batchDuplicate called', { selectedRows });
     if (selectedRows.size === 0) {
       toast.error('請選擇要複製的資料');
@@ -719,17 +834,33 @@ export function DataTable({
     console.log('Updated table:', updatedTable);
     
     // 强制创建一个新的数组引用以确保状态更新
-    onUpdateTable({ 
-      ...table, 
-      rows: [...table.rows, ...duplicatedRows] 
-    });
-    
-    setSelectedRows(new Set());
-    toast.success(`已複製 ${selectedRowsData.length} 筆資料`);
+        // 使用 onCreateRow 回调函数创建新行，或使用 onUpdateTable 更新前端状态
+    try {
+      if (onCreateRow) {
+        // 并行创建所有复制的行
+        await Promise.all(
+          duplicatedRows.map(row => {
+            // 移除ID，让后端生成新的ID
+            const { id, ...rowData } = row;
+            return onCreateRow(table.id, rowData);
+          })
+        );
+      } else {
+        // 如果没有 onCreateRow 回调，则使用 onUpdateTable 更新前端状态
+        onUpdateTable({ 
+          ...table, 
+          rows: [...table.rows, ...duplicatedRows] 
+        });
+      }
+      
+      setSelectedRows(new Set());
+      toast.success(`已複製 ${selectedRowsData.length} 筆資料`);
+    } catch (error) {
+      console.error('批量复制失败:', error);
+      toast.error('批量复制失败');
+    }
   };
-// ... existing code ...
-// ... existing code ...
-// ... existing code ...
+
 
   const filteredRows = table.rows.filter(row => {
     // 搜尋篩選
