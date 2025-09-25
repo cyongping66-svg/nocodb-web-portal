@@ -551,6 +551,9 @@ export function DataTable({
  
 
   // ... existing code ...
+  // ... existing code ...
+  // ... existing code ...
+  // ... existing code ...
   const batchEdit = () => {
     console.log('batchEdit called', { selectedRows, batchEditColumn, batchEditValue });
     if (selectedRows.size === 0) {
@@ -563,8 +566,13 @@ export function DataTable({
     }
 
     const column = table.columns.find(col => col.id === batchEditColumn);
-    if (!column) return;
-    console.log('Column not found for batchEditColumn:', batchEditColumn);
+    if (!column) {
+      console.log('Column not found for batchEditColumn:', batchEditColumn);
+      toast.error('找不到指定的欄位');
+      return;
+    }
+
+    console.log('Editing column:', column);
 
     let processedValue: any = batchEditValue;
     if (column.type === 'number') {
@@ -573,30 +581,55 @@ export function DataTable({
       processedValue = batchEditValue === 'true';
     }
 
+    console.log('Processed value:', processedValue);
+
     const updatedRows: Row[] = table.rows.map(row =>
       selectedRows.has(row.id)
         ? { ...row, [batchEditColumn]: processedValue }
         : row
     );
 
-    onUpdateTable({ ...table, rows: updatedRows });
+    console.log('Updated rows count:', updatedRows.filter(row => selectedRows.has(row.id)).length);
+    
+    // 强制创建一个新的数组引用以确保状态更新
+    onUpdateTable({ 
+      ...table, 
+      rows: updatedRows 
+    });
+    
     setSelectedRows(new Set());
     setBatchEditColumn('');
     setBatchEditValue('');
     setIsBatchEditOpen(false);
     toast.success(`已更新 ${selectedRows.size} 筆資料`);
   };
-const batchDelete = () => {
+// ... existing code ...
+// ... existing code ...
+// ... existing code ...
+// ... existing code ...
+  // ... existing code ...
+  const batchDelete = () => {
+    console.log('batchDelete called', { selectedRows });
     if (selectedRows.size === 0) {
       toast.error('請選擇要刪除的資料');
       return;
     }
 
     const updatedRows: Row[] = table.rows.filter(row => !selectedRows.has(row.id));
-    onUpdateTable({ ...table, rows: updatedRows });
+    console.log('Rows before delete:', table.rows.length, 'Rows after delete:', updatedRows.length);
+    
+    // 强制创建一个新的数组引用以确保状态更新
+    onUpdateTable({ 
+      ...table, 
+      rows: updatedRows 
+    });
+    
     setSelectedRows(new Set());
     toast.success(`已刪除 ${selectedRows.size} 筆資料`);
   };
+// ... existing code ...
+// ... existing code ...
+// ... existing code ...
 
   const batchExport = () => {
     if (selectedRows.size === 0) {
@@ -644,13 +677,19 @@ const batchDelete = () => {
     toast.success(`已匯出 ${selectedRows.size} 筆Excel資料`);
   };
 
+  // ... existing code ...
+  // ... existing code ...
+  // ... existing code ...
   const batchDuplicate = () => {
+    console.log('batchDuplicate called', { selectedRows });
     if (selectedRows.size === 0) {
       toast.error('請選擇要複製的資料');
       return;
     }
 
     const selectedRowsData = table.rows.filter(row => selectedRows.has(row.id));
+    console.log('Selected rows to duplicate:', selectedRowsData);
+    
     const duplicatedRows: Row[] = selectedRowsData.map(row => {
       // 深拷贝行数据，确保对象类型数据也被正确复制
       const newRow = JSON.parse(JSON.stringify(row));
@@ -660,14 +699,29 @@ const batchDelete = () => {
       };
     });
 
-    onUpdateTable({
+    console.log('Duplicated rows:', duplicatedRows);
+    console.log('Original rows count:', table.rows.length);
+    console.log('New rows count:', [...table.rows, ...duplicatedRows].length);
+
+    const updatedTable = {
       ...table,
       rows: [...table.rows, ...duplicatedRows]
+    };
+    
+    console.log('Updated table:', updatedTable);
+    
+    // 强制创建一个新的数组引用以确保状态更新
+    onUpdateTable({ 
+      ...table, 
+      rows: [...table.rows, ...duplicatedRows] 
     });
-
+    
     setSelectedRows(new Set());
     toast.success(`已複製 ${selectedRowsData.length} 筆資料`);
   };
+// ... existing code ...
+// ... existing code ...
+// ... existing code ...
 
   const filteredRows = table.rows.filter(row => {
     // 搜尋篩選
@@ -1579,18 +1633,25 @@ const batchDelete = () => {
                           })()}
                         </div>
                       )}
+                      
                       <div className="flex gap-2 pt-2">
                         <Button onClick={() => setIsBatchEditOpen(false)} variant="outline" className="flex-1">
                           取消
                         </Button>
-                        <Button onClick={batchEdit} className="flex-1" disabled={!batchEditColumn}>
+                        <Button 
+                          onClick={() => {
+                            console.log('Batch edit button clicked');
+                            batchEdit();
+                          }} 
+                          className="flex-1" 
+                          disabled={!batchEditColumn}
+                        >
                           套用變更
                         </Button>
                       </div>
                     </div>
                   </DialogContent>
                 </Dialog>
-
 
                 <Button variant="outline" size="sm" onClick={batchDuplicate}>
                   <Copy className="w-4 h-4 mr-2" />
@@ -1619,6 +1680,7 @@ const batchDelete = () => {
           </div>
         </div>
       )}
+
 
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">

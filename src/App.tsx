@@ -104,14 +104,19 @@ function App() {
     }
   };
   const updateTable = async (updatedTable: Table) => {
-    try {
-      await apiService.updateTable(updatedTable.id, updatedTable);
-      await loadTables();
-    } catch (err) {
-      console.error('Error updating table:', err);
-      toast.error('更新子表失敗');
-    }
-  };
+  try {
+    await apiService.updateTable(updatedTable.id, updatedTable);
+    // 直接更新本地状态而不是重新加载所有数据
+    setTables(prevTables => 
+      prevTables.map(table => 
+        table.id === updatedTable.id ? updatedTable : table
+      )
+    );
+  } catch (err) {
+    console.error('Error updating table:', err);
+    toast.error('更新子表失敗');
+  }
+};
 
   // 在 updateTable 函数后添加以下函数:
       const createRow = async (tableId: string, rowData: any) => {
