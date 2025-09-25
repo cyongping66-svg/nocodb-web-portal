@@ -478,7 +478,7 @@ export function DataTable({
     setSelectOpen(false);
   };
 
-  const handleFileUpload = (rowId: string, columnId: string, file: File) => {
+    const handleFileUpload = (rowId: string, columnId: string, file: File) => {
     // Create a file URL for display
     const fileUrl = URL.createObjectURL(file);
     const fileData = {
@@ -489,14 +489,25 @@ export function DataTable({
       lastModified: file.lastModified
     };
 
-    const updatedRows: Row[] = table.rows.map(row =>
-      row.id === rowId
-        ? { ...row, [columnId]: fileData }
-        : row
-    );
-
-    onUpdateTable({ ...table, rows: updatedRows });
-    toast.success('檔案上傳成功');
+    // 使用 onUpdateRow 如果可用
+    const rowToUpdate = table.rows.find(row => row.id === rowId);
+    if (rowToUpdate) {
+      const updatedRowData = {
+        ...rowToUpdate,
+        [columnId]: fileData
+      };
+      
+      if (onUpdateRow) {
+        onUpdateRow(table.id, rowId, updatedRowData);
+      } else {
+        const updatedRows: Row[] = table.rows.map(row =>
+          row.id === rowId
+            ? updatedRowData
+            : row
+        );
+        onUpdateTable({ ...table, rows: updatedRows });
+      }
+    }
   };
 
   const cancelEdit = () => {
@@ -833,18 +844,29 @@ export function DataTable({
                 </Button>
                 <Button
                   size="sm"
-                  onClick={() => {
-                    // 保存多选值
-                    const updatedRows: Row[] = table.rows.map(row =>
-                      editingCell && row.id === editingCell?.rowId
-                        ? { ...row, [editingCell.columnId]: editValue }
-                        : row
-                    );
-                    onUpdateTable({ ...table, rows: updatedRows });
-                    setEditingCell(null);
-                    setEditValue('');
-                    setSelectOpen(false);
-                    toast.success('選項已更新');
+                                    onClick={() => {
+                    // 保存多选值，使用 onUpdateRow 如果可用
+                    const rowToUpdate = table.rows.find(row => row.id === editingCell?.rowId);
+                    if (rowToUpdate && editingCell) {
+                      const updatedRowData: Row = {
+                        ...rowToUpdate,
+                        [editingCell.columnId]: editValue
+                      };
+                      
+                      if (onUpdateRow) {
+                        onUpdateRow(table.id, editingCell.rowId, updatedRowData);
+                      } else {
+                        const updatedRows: Row[] = table.rows.map(row =>
+                          row.id === editingCell.rowId
+                            ? updatedRowData
+                            : row
+                        );
+                        onUpdateTable({ ...table, rows: updatedRows });
+                      }
+                      setEditingCell(null);
+                      setEditValue('');
+                      
+                    }
                   }}
                 >
                   確定
@@ -856,23 +878,34 @@ export function DataTable({
           // 单选下拉框
           return (
             <div className="w-full" onClick={(e) => e.stopPropagation()}>
-              <Select 
+                           <Select 
                 value={editValue as string || ''} 
                 open={selectOpen}
                 onOpenChange={setSelectOpen}
                 onValueChange={(val) => {
                   setEditValue(val);
-                  // 立即更新數據並結束編輯
-                  const updatedRows: Row[] = table.rows.map(row =>
-                    row.id === editingCell?.rowId
-                      ? { ...row, [editingCell.columnId]: val }
-                      : row
-                  );
-                  onUpdateTable({ ...table, rows: updatedRows });
-                  setEditingCell(null);
-                  setEditValue('');
-                  setSelectOpen(false);
-                  toast.success('選項已更新');
+                  // 使用 onUpdateRow 如果可用
+                  const rowToUpdate = table.rows.find(row => row.id === editingCell?.rowId);
+                  if (rowToUpdate && editingCell) {
+                    const updatedRowData: Row = {
+                      ...rowToUpdate,
+                      [editingCell.columnId]: val
+                    };
+                    
+                    if (onUpdateRow) {
+                      onUpdateRow(table.id, editingCell.rowId, updatedRowData);
+                    } else {
+                      const updatedRows: Row[] = table.rows.map(row =>
+                        row.id === editingCell.rowId
+                          ? updatedRowData
+                          : row
+                      );
+                      onUpdateTable({ ...table, rows: updatedRows });
+                    }
+                    setEditingCell(null);
+                    setEditValue('');
+                    
+                  }
                 }}
               >
                 <SelectTrigger className="h-8 w-full">

@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Plus, Edit, Trash2, File, Link, Mail, Phone, Search, Filter, X, CheckSquare, Square, Download, Copy } from 'lucide-react';
-import { Table, Row } from '../types';
+import { Table, Row } from '@/types';
 import { toast } from 'sonner';
 import * as XLSX from 'xlsx';
 
@@ -284,9 +284,9 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
     // 搜尋篩選
     if (searchTerm) {
       const searchMatch = Object.values(row).some(value => {
-        if (value && typeof value === 'object' && value.name) {
+        if (value && typeof value === 'object' && (value as any).name) {
           // 對於檔案類型，搜尋檔案名稱
-          return value.name.toLowerCase().includes(searchTerm.toLowerCase());
+          return (value as any).name.toLowerCase().includes(searchTerm.toLowerCase());
         }
         return String(value || '').toLowerCase().includes(searchTerm.toLowerCase());
       });
@@ -317,6 +317,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
             const maxValue = parseFloat(filterValue);
             return isNaN(maxValue) || numValue <= maxValue;
           }
+          return true; // 确保在number类型处理完后返回，避免继续执行后面的逻辑
         } else if (column.type === 'date') {
           const dateValue = new Date(cellValue);
           const filterDate = new Date(filterValue);
@@ -328,6 +329,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
           } else if (filterKey.endsWith('_end')) {
             return dateValue <= filterDate;
           }
+          return true; // 确保在date类型处理完后返回，避免继续执行后面的逻辑
         }
         
         return true;
@@ -351,7 +353,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
         }
         return String(cellValue || '').toLowerCase().includes(filterValue.toLowerCase());
       }
-    })
+    });
   });
 
   const renderFieldInput = (column: any, value: any, onChange: (value: any) => void, isEditing = false) => {
@@ -374,7 +376,7 @@ export function CardView({ table, onUpdateTable }: CardViewProps) {
           // 多选输入
           return (
             <div className="space-y-2">
-              <Label>{column.name}</Label>
+              {!isEditing && <Label>{column.name}</Label>}
               <div className="flex flex-wrap gap-2">
                 {column.options?.map((option: string, index: number) => {
                   const currentValue = Array.isArray(value) ? value : [];

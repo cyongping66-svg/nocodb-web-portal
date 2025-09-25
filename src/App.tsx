@@ -12,6 +12,7 @@ import { TableManager } from '@/components/TableManager';
 import { DataTable } from '@/components/DataTable';
 import { CardView } from '@/components/CardView';
 import { apiService } from '@/lib/api';
+import * as XLSX from 'xlsx';
 
 function App() {
   const [tables, setTables] = useState<Table[]>([]);
@@ -102,7 +103,6 @@ function App() {
       toast.error('刪除子表失敗');
     }
   };
-
   const updateTable = async (updatedTable: Table) => {
     try {
       await apiService.updateTable(updatedTable.id, updatedTable);
@@ -113,23 +113,82 @@ function App() {
     }
   };
 
+  // 在 updateTable 函数后添加以下函数:
+      const createRow = async (tableId: string, rowData: any) => {
+    try {
+      // 调用后端 API 创建新行
+      await apiService.createRow(tableId, rowData);
+      // 重新加载数据以确保同步
+      await loadTables();
+      toast.success('數據添加成功');
+    } catch (err) {
+      console.error('Error creating row:', err);
+      toast.error('添加數據失敗');
+    }
+  };
+    const updateRow = async (tableId: string, rowId: string, rowData: any) => {
+    try {
+      // 调用后端 API 更新行数据
+      await apiService.updateRow(tableId, rowId, rowData);
+      // 重新加载数据以确保同步
+      await loadTables();
+      toast.success('數據更新成功');
+    } catch (err) {
+      console.error('Error updating row:', err);
+      toast.error('更新數據失敗');
+    }
+  };
+  const deleteRow = async (tableId: string, rowId: string) => {
+    try {
+      // 调用后端 API 删除行数据
+      await apiService.deleteRow(tableId, rowId);
+      // 重新加载数据以确保同步
+      await loadTables();
+      toast.success('數據刪除成功');
+    } catch (err) {
+      console.error('Error deleting row:', err);
+      toast.error('刪除數據失敗');
+    }
+  };
   const exportData = () => {
     if (!activeTable) return;
+
+    // 准备表头数据
+    const headers = activeTable.columns.map(col => col.name);
     
-    const dataStr = JSON.stringify({
-      tableName: activeTable.name,
-      columns: activeTable.columns,
-      rows: activeTable.rows
-    }, null, 2);
-    
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${activeTable.name.toLowerCase().replace(/\s+/g, '-')}.json`;
-    link.click();
-    URL.revokeObjectURL(url);
-    toast.success('資料匯出成功');
+    // 准备行数据
+    const rows = activeTable.rows.map(row => {
+      const rowData: any = {};
+      activeTable.columns.forEach(col => {
+        rowData[col.name] = row[col.id];
+      });
+      return rowData;
+    });
+
+    // 创建工作表
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...rows.map(row => 
+      headers.map(header => {
+        const value = row[header];
+        // 处理特殊类型数据
+        if (value && typeof value === 'object') {
+          if (value.name) {
+            // 文件类型数据
+            return value.name;
+          }
+          // 其他对象类型数据
+          return JSON.stringify(value);
+        }
+        return value;
+      })
+    )]);
+
+    // 创建工作簿
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, activeTable.name.substring(0, 31)); // Excel工作表名称限制为31个字符
+
+    // 导出文件
+    XLSX.writeFile(wb, `${activeTable.name.toLowerCase().replace(/\s+/g, '-')}.xlsx`);
+    toast.success('Excel資料匯出成功');
   };
 
   // 显示存储模式
@@ -185,7 +244,7 @@ function App() {
                 </div>
               </DialogContent>
             </Dialog>
-
+             
             <TableManager
               tables={tables}
               activeTableId={activeTableId}
@@ -226,9 +285,11 @@ function App() {
               {/* Content */}
               <div className="flex-1 p-4">
                 {viewMode === 'grid' ? (
-                  <DataTable table={activeTable} onUpdateTable={updateTable} />
+                  <DataTable table={activeTable} 
+                  onUpdateTable={updateTable} onCreateRow={createRow} onUpdateRow={updateRow} onDeleteRow={deleteRow} />
                 ) : (
-                  <CardView table={activeTable} onUpdateTable={updateTable} />
+                  <CardView table={activeTable} 
+                  onUpdateTable={updateTable} onCreateRow={createRow} onUpdateRow={updateRow} onDeleteRow={deleteRow} />
                 )}
               </div>
             </>
