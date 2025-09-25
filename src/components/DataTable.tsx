@@ -548,19 +548,11 @@ export function DataTable({
     }
   };
 
-  const batchDelete = () => {
-    if (selectedRows.size === 0) {
-      toast.error('請選擇要刪除的資料');
-      return;
-    }
+ 
 
-    const updatedRows: Row[] = table.rows.filter(row => !selectedRows.has(row.id));
-    onUpdateTable({ ...table, rows: updatedRows });
-    setSelectedRows(new Set());
-    toast.success(`已刪除 ${selectedRows.size} 筆資料`);
-  };
-
+  // ... existing code ...
   const batchEdit = () => {
+    console.log('batchEdit called', { selectedRows, batchEditColumn, batchEditValue });
     if (selectedRows.size === 0) {
       toast.error('請選擇要編輯的資料');
       return;
@@ -572,6 +564,7 @@ export function DataTable({
 
     const column = table.columns.find(col => col.id === batchEditColumn);
     if (!column) return;
+    console.log('Column not found for batchEditColumn:', batchEditColumn);
 
     let processedValue: any = batchEditValue;
     if (column.type === 'number') {
@@ -592,6 +585,17 @@ export function DataTable({
     setBatchEditValue('');
     setIsBatchEditOpen(false);
     toast.success(`已更新 ${selectedRows.size} 筆資料`);
+  };
+const batchDelete = () => {
+    if (selectedRows.size === 0) {
+      toast.error('請選擇要刪除的資料');
+      return;
+    }
+
+    const updatedRows: Row[] = table.rows.filter(row => !selectedRows.has(row.id));
+    onUpdateTable({ ...table, rows: updatedRows });
+    setSelectedRows(new Set());
+    toast.success(`已刪除 ${selectedRows.size} 筆資料`);
   };
 
   const batchExport = () => {
@@ -647,10 +651,14 @@ export function DataTable({
     }
 
     const selectedRowsData = table.rows.filter(row => selectedRows.has(row.id));
-    const duplicatedRows: Row[] = selectedRowsData.map(row => ({
-      ...row,
-      id: `${Date.now()}-${Math.random()}`,
-    }));
+    const duplicatedRows: Row[] = selectedRowsData.map(row => {
+      // 深拷贝行数据，确保对象类型数据也被正确复制
+      const newRow = JSON.parse(JSON.stringify(row));
+      return {
+        ...newRow,
+        id: `${Date.now()}-${Math.random()}`,
+      };
+    });
 
     onUpdateTable({
       ...table,
@@ -787,26 +795,29 @@ export function DataTable({
           // 多选下拉框
           return (
             <div className="w-full" onClick={(e) => e.stopPropagation()}>
-              <Select 
-                value={Array.isArray(editValue) && (editValue as any[]).length > 0 ? (editValue as any[])[0] : ''} 
-                open={selectOpen}
-                onOpenChange={(open) => {
-                  // 只有在关闭时才更新状态
-                  if (!open) {
-                    setSelectOpen(false);
-                  } else {
-                    setSelectOpen(true);
-                  }
-                }}
-                onValueChange={(val) => {
-                  // 多选情况下，处理数组值
-                  const currentValues = Array.isArray(editValue) ? editValue as any[] : [];
-                  const newValues = currentValues.includes(val)
-                    ? currentValues.filter(v => v !== val)
-                    : [...currentValues, val];
-                  setEditValue(newValues);
-                }}
-              >
+             
+                <Select 
+                  value={Array.isArray(editValue) && (editValue as any[]).length > 0 ? (editValue as any[])[0] : ''} 
+                  open={selectOpen}
+                  onOpenChange={(open) => {
+                    // 只有在关闭时才更新状态
+                    if (!open) {
+                      setSelectOpen(false);
+                    } else {
+                      setSelectOpen(true);
+                    }
+                  }}
+                  onValueChange={(val) => {
+                    // 多选情况下，处理数组值
+                    const currentValues = Array.isArray(editValue) ? editValue as any[] : [];
+                    const newValues = currentValues.includes(val)
+                      ? currentValues.filter(v => v !== val)
+                      : [...currentValues, val];
+                    setEditValue(newValues);
+                  }}
+                  name={`multi-select-${editingCell?.rowId}-${editingCell?.columnId}`}
+                >
+          
                 <SelectTrigger className="h-8 w-full">
                   <SelectValue placeholder="請選擇選項">
                     {Array.isArray(editValue) && (editValue as any[]).length > 0
@@ -878,7 +889,8 @@ export function DataTable({
           // 单选下拉框
           return (
             <div className="w-full" onClick={(e) => e.stopPropagation()}>
-                           <Select 
+             
+               <Select 
                 value={editValue as string || ''} 
                 open={selectOpen}
                 onOpenChange={setSelectOpen}
@@ -907,7 +919,9 @@ export function DataTable({
                     
                   }
                 }}
+                name={`select-${editingCell?.rowId}-${editingCell?.columnId}`}
               >
+
                 <SelectTrigger className="h-8 w-full">
                   <SelectValue placeholder="請選擇選項" />
                 </SelectTrigger>
@@ -927,22 +941,27 @@ export function DataTable({
         }
       } else if (column.type === 'file') {
         return (
-          <Input
-            type="file"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) {
-                handleFileUpload(row.id, column.id, file);
-                setEditingCell(null);
-              }
-            }}
-            className="h-8"
-            autoFocus
-          />
+          // ... existing code ...
+              <Input
+                id={`file-upload-${row.id}-${column.id}`}
+                type="file"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) {
+                    handleFileUpload(row.id, column.id, file);
+                    setEditingCell(null);
+                  }
+                }}
+                className="h-8"
+                autoFocus
+              />
+// ... existing code ...
         );
+      // ... existing code ...
       } else {
         return (
           <Input
+            id={`edit-cell-${editingCell?.rowId}-${editingCell?.columnId}`}
             value={editValue}
             onChange={(e) => setEditValue(e.target.value)}
             onBlur={saveEdit}
@@ -963,7 +982,7 @@ export function DataTable({
         );
       }
     }
-
+// ... existing code ...
     // Display logic for different column types
     const renderCellContent = () => {
       if (column.type === 'boolean') {
@@ -1463,6 +1482,7 @@ export function DataTable({
                 已選擇 {selectedRows.size} 筆資料
               </span>
               <div className="flex items-center gap-2">
+                
                 <Dialog open={isBatchEditOpen} onOpenChange={setIsBatchEditOpen}>
                   <DialogTrigger asChild>
                     <Button variant="outline" size="sm">
@@ -1470,14 +1490,18 @@ export function DataTable({
                       批量編輯
                     </Button>
                   </DialogTrigger>
-                  <DialogContent>
+                  <DialogContent aria-describedby={undefined}>
                     <DialogHeader>
                       <DialogTitle>批量編輯資料</DialogTitle>
                     </DialogHeader>
                     <div className="space-y-4">
                       <div>
-                        <Label>選擇要編輯的欄位</Label>
-                        <Select value={batchEditColumn} onValueChange={setBatchEditColumn}>
+                        <Label htmlFor="batch-edit-column">選擇要編輯的欄位</Label>
+                        <Select 
+                          value={batchEditColumn} 
+                          onValueChange={setBatchEditColumn}
+                          name="batch-edit-column"
+                        >
                           <SelectTrigger>
                             <SelectValue placeholder="選擇欄位" />
                           </SelectTrigger>
@@ -1492,14 +1516,18 @@ export function DataTable({
                       </div>
                       {batchEditColumn && (
                         <div>
-                          <Label>新值</Label>
+                          <Label htmlFor="batch-edit-value">新值</Label>
                           {(() => {
                             const column = table.columns.find(col => col.id === batchEditColumn);
                             if (!column) return null;
 
                             if (column.type === 'boolean') {
                               return (
-                                <Select value={batchEditValue} onValueChange={setBatchEditValue}>
+                                <Select 
+                                  value={batchEditValue} 
+                                  onValueChange={setBatchEditValue}
+                                  name="batch-edit-value"
+                                >
                                   <SelectTrigger>
                                     <SelectValue placeholder="選擇值" />
                                   </SelectTrigger>
@@ -1511,7 +1539,11 @@ export function DataTable({
                               );
                             } else if (column.type === 'select' && column.options) {
                               return (
-                                <Select value={batchEditValue} onValueChange={setBatchEditValue}>
+                                <Select 
+                                  value={batchEditValue} 
+                                  onValueChange={setBatchEditValue}
+                                  name="batch-edit-value"
+                                >
                                   <SelectTrigger>
                                     <SelectValue placeholder="選擇選項" />
                                   </SelectTrigger>
@@ -1530,6 +1562,7 @@ export function DataTable({
                             } else {
                               return (
                                 <Input
+                                  id="batch-edit-value"
                                   value={batchEditValue}
                                   onChange={(e) => setBatchEditValue(e.target.value)}
                                   placeholder="輸入新值"
@@ -1557,6 +1590,7 @@ export function DataTable({
                     </div>
                   </DialogContent>
                 </Dialog>
+
 
                 <Button variant="outline" size="sm" onClick={batchDuplicate}>
                   <Copy className="w-4 h-4 mr-2" />

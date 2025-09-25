@@ -127,64 +127,30 @@ router.delete('/:tableId/rows/:rowId', (req, res) => {
 // 批量操作
 router.post('/:tableId/rows/batch', (req, res) => {
   const { tableId } = req.params;
-  const { operation, rows, rowIds } = req.body;
+  const { operations } = req.body;
 
-  switch (operation) {
-    case 'create':
-      // 批量創建
-      const createPromises = rows.map(rowData => {
-        return new Promise((resolve, reject) => {
-          if (!rowData.id) {
-            rowData.id = uuidv4();
-          }
-          try {
-            const result = db.createRow(tableId, rowData);
-            resolve(result);
-          } catch (err) {
-            reject(err);
-          }
-        });
+  if (!operations || !Array.isArray(operations)) {
+    return res.status(400).json({ error: 'Operations array is required' });
+  }
+
+  try {
+    const result = db.batchUpdateRows(tableId, operations);
+    
+    if (result.errors && result.errors.length > 0) {
+      return res.status(207).json({
+        message: 'Batch operation completed with errors',
+        results: result.results,
+        errors: result.errors
       });
-
-      Promise.all(createPromises)
-        .then(results => {
-          res.status(201).json({ message: 'Rows created successfully', rows: results });
-        })
-        .catch(err => {
-          console.error('Error in batch create:', err);
-          res.status(500).json({ error: 'Failed to create rows' });
-        });
-      break;
-
-    case 'delete':
-      // 批量刪除
-      if (!rowIds || !Array.isArray(rowIds)) {
-        return res.status(400).json({ error: 'rowIds array is required for delete operation' });
-      }
-
-      const deletePromises = rowIds.map(rowId => {
-        return new Promise((resolve, reject) => {
-          try {
-            const result = db.deleteRow(rowId);
-            resolve(result);
-          } catch (err) {
-            reject(err);
-          }
-        });
-      });
-
-      Promise.all(deletePromises)
-        .then(() => {
-          res.json({ message: `${rowIds.length} rows deleted successfully` });
-        })
-        .catch(err => {
-          console.error('Error in batch delete:', err);
-          res.status(500).json({ error: 'Failed to delete rows' });
-        });
-      break;
-
-    default:
-      res.status(400).json({ error: 'Invalid operation. Supported: create, delete' });
+    }
+    
+    res.json({
+      message: 'Batch operation completed successfully',
+      results: result.results
+    });
+  } catch (err) {
+    console.error('Error in batch operation:', err);
+    return res.status(500).json({ error: 'Failed to perform batch operation' });
   }
 });
 

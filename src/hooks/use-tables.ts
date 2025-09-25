@@ -222,6 +222,7 @@ export function useTables() {
     }
   }
 
+// ... existing code ...
   const deleteRow = async (tableId: string, rowId: string) => {
     try {
       if (isUsingSupabase || isUsingBackend) {
@@ -252,6 +253,72 @@ export function useTables() {
     }
   }
 
+  const batchUpdateRows = async (tableId: string, operations: any[]) => {
+    try {
+      if (isUsingSupabase || isUsingBackend) {
+        // 使用 API 批量操作
+        await apiService.batchUpdateRows(tableId, operations)
+        await loadTables()
+        toast.success('批量操作已完成')
+      } else {
+        // 本地存储模式 - 处理所有类型的批量操作
+        let updatedTables = [...tables]
+        
+        for (const op of operations) {
+          switch (op.type) {
+            case 'delete':
+              updatedTables = updatedTables.map(table => {
+                if (table.id === tableId) {
+                  const updatedRows = table.rows.filter(row => 
+                    op.rowIds ? !op.rowIds.includes(row.id) : row.id !== op.rowId
+                  )
+                  return { ...table, rows: updatedRows }
+                }
+                return table
+              })
+              break
+              
+            case 'create':
+              updatedTables = updatedTables.map(table => {
+                if (table.id === tableId && op.rowData) {
+                  const newRow = {
+                    id: Date.now().toString() + Math.random().toString(36).substr(2, 9),
+                    ...op.rowData
+                  }
+                  return { ...table, rows: [...table.rows, newRow] }
+                }
+                return table
+              })
+              break
+              
+            case 'update':
+              updatedTables = updatedTables.map(table => {
+                if (table.id === tableId) {
+                  const updatedRows = table.rows.map(row => {
+                    if (row.id === op.rowId) {
+                      return { ...row, ...op.rowData }
+                    }
+                    return row
+                  })
+                  return { ...table, rows: updatedRows }
+                }
+                return table
+              })
+              break
+          }
+        }
+        
+        setTablesState(updatedTables)
+        localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(updatedTables))
+        toast.success('批量操作已完成')
+      }
+    } catch (err) {
+      console.error('Error batch updating rows:', err)
+      toast.error('批量操作失败')
+      throw err
+    }
+  }
+
   return {
     tables,
     loading,
@@ -262,6 +329,7 @@ export function useTables() {
     addRow,
     updateRow,
     deleteRow,
+    batchUpdateRows,
     loadTables
   }
 }

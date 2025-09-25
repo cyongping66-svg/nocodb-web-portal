@@ -207,12 +207,70 @@ class DatabaseManager {
     }
   }
 
+// ... existing code ...
+
   deleteRow(rowId) {
     try {
       const stmt = this.db.prepare("DELETE FROM rows WHERE id = ?");
       return stmt.run(rowId);
     } catch (err) {
       console.error('Error deleting row:', err);
+      throw err;
+    }
+  }
+
+  // 添加批量操作方法
+  batchUpdateRows(tableId, operations) {
+    const results = [];
+    const errors = [];
+    
+    // 开始事务
+    const transaction = this.db.transaction((operations) => {
+      for (const operation of operations) {
+        try {
+          switch (operation.type) {
+            case 'create':
+              if (operation.rowData) {
+                const id = operation.rowData.id || uuidv4();
+                const rowData = { ...operation.rowData, id };
+                this.createRow(tableId, rowData);
+                results.push({ operation: 'create', id, success: true });
+              }
+              break;
+              
+            case 'update':
+              if (operation.rowId && operation.rowData) {
+                this.updateRow(operation.rowId, operation.rowData);
+                results.push({ operation: 'update', id: operation.rowId, success: true });
+              }
+              break;
+              
+            case 'delete':
+              if (operation.rowId) {
+                this.deleteRow(operation.rowId);
+                results.push({ operation: 'delete', id: operation.rowId, success: true });
+              } else if (operation.rowIds && Array.isArray(operation.rowIds)) {
+                for (const rowId of operation.rowIds) {
+                  this.deleteRow(rowId);
+                  results.push({ operation: 'delete', id: rowId, success: true });
+                }
+              }
+              break;
+              
+            default:
+              errors.push({ operation: operation.type, error: 'Unknown operation type' });
+          }
+        } catch (err) {
+          errors.push({ operation: operation.type, error: err.message });
+        }
+      }
+    });
+    
+    try {
+      transaction(operations);
+      return { results, errors };
+    } catch (err) {
+      console.error('Error in batch operation:', err);
       throw err;
     }
   }
