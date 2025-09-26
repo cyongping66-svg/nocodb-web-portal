@@ -117,13 +117,47 @@ function App() {
       const createRow = async (tableId: string, rowData: any) => {
     try {
       // 调用后端 API 创建新行
-      await apiService.createRow(tableId, rowData);
-      // 重新加载数据以确保同步
-      await loadTables();
-      toast.success('數據添加成功');
+      const serverResponse = await apiService.createRow(tableId, rowData);
+
+      // 如果服务器返回了数据，更新本地状态
+      if (serverResponse) {
+        // 获取服务器返回的完整记录，包括生成的ID
+        const newRowFromServer = {
+          id: serverResponse.id,
+          ...serverResponse
+        };
+
+        // 更新本地状态，避免重载全表
+        setTables(prevTables =>
+          prevTables.map(table =>
+            table.id === tableId
+              ? { ...table, rows: [...table.rows, newRowFromServer] }
+              : table
+          )
+        );
+
+        // 可选: 如果需要确保一致性，可以重新加载一次
+        // await loadTables();
+
+        toast.success('數據添加成功');
+        return serverResponse;
+      } else {
+        // 备用方案：重新加载数据
+        await loadTables();
+        toast.success('數據添加成功');
+      }
     } catch (err) {
       console.error('Error creating row:', err);
+      // 如果前端生成的新行已在服务器创建了，但出错，重试加载
+      if (err.message?.includes('already exists') || err.message?.includes('duplicate')) {
+        // 可能数据实际已创建，但前端状态不同步，重载数据
+        await loadTables();
+        toast.success('數據已成功添加');
+        return;
+      }
       toast.error('添加數據失敗');
+      // 抛出错误，以便调用方知道失败
+      throw err;
     }
   };
     const updateRow = async (tableId: string, rowId: string, rowData: any) => {
@@ -139,11 +173,16 @@ function App() {
     }
   };
   const deleteRow = async (tableId: string, rowId: string) => {
+    console.log(`deleteRow called with tableId: ${tableId}, rowId: ${rowId}`);
     try {
-      // 调用后端 API 删除行数据
-      await apiService.deleteRow(tableId, rowId);
-      // 重新加载数据以确保同步
+      console.log('Calling apiService.deleteRow...');
+      const result = await apiService.deleteRow(tableId, rowId);
+      console.log('API deleteRow result:', result);
+
+      console.log('Calling loadTables to refresh data...');
       await loadTables();
+      console.log('loadTables completed successfully');
+
       toast.success('數據刪除成功');
     } catch (err) {
       console.error('Error deleting row:', err);

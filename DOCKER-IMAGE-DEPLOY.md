@@ -3,8 +3,8 @@
 ## 📋 部署方式說明
 
 這個項目使用 **預構建 Docker 鏡像** 的方式部署，包含兩個鏡像：
-- `ddrenn/nocodb-frontend:250921` - 前端 React 應用
-- `ddrenn/nocodb-backend:250921` - 後端 Node.js API
+- `ddrenn/nocodb-frontend:250925` - 前端 React 應用
+- `ddrenn/nocodb-backend:250925` - 後端 Node.js API
 
 ## 🏗️ 步驟一：本地構建和推送鏡像
 
@@ -56,7 +56,7 @@ services:
     # ... 其他配置
 
   frontend:
-    image: ddrenn/nocodb-frontend:250921
+    image: ddrenn/nocodb-frontend:250925
     # ... 其他配置
 ```
 

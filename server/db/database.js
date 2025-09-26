@@ -210,9 +210,12 @@ class DatabaseManager {
 // ... existing code ...
 
   deleteRow(rowId) {
+    console.log(`DatabaseManager.deleteRow called with rowId: ${rowId}`);
     try {
       const stmt = this.db.prepare("DELETE FROM rows WHERE id = ?");
-      return stmt.run(rowId);
+      const result = stmt.run(rowId);
+      console.log('Database delete result:', result);
+      return result;
     } catch (err) {
       console.error('Error deleting row:', err);
       throw err;

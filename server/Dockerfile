@@ -1,6 +1,9 @@
 # 使用 Node.js 18 作為基礎鏡像
 FROM node:18-alpine
 
+# 安裝 Python 和構建工具以支持 better-sqlite3 編譯
+RUN apk add --no-cache python3 make g++
+
 # 設置工作目錄
 WORKDIR /app
 
@@ -17,10 +20,7 @@ COPY . .
 RUN mkdir -p /app/data
 
 # 暴露端口
-EXPOSE 3001
+EXPOSE 3003
 
-# 設置環境變量
-ENV NODE_ENV=production
-
-# 啟動應用程式
+# 啟動應用
 CMD ["node", "server.js"]

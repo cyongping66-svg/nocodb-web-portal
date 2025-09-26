@@ -88,9 +88,12 @@ class ApiService {
   }
 
   async deleteRow(tableId, rowId) {
-    return this.request(`/tables/${tableId}/rows/${rowId}`, {
+    console.log(`apiService.deleteRow called with tableId: ${tableId}, rowId: ${rowId}`);
+    const result = await this.request(`/tables/${tableId}/rows/${rowId}`, {
       method: 'DELETE',
     });
+    console.log(`apiService.deleteRow result:`, result);
+    return result;
   }
 
   async batchDeleteRows(tableId, rowIds) {

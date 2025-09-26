@@ -683,6 +683,20 @@ export function DataTable({
       processedValue = parseFloat(batchEditValue) || 0;
     } else if (column.type === 'boolean') {
       processedValue = batchEditValue === 'true';
+    } else if (column.type === 'select') {
+      // 驗證選擇值是否在選項列表中
+      if (column.options && !column.options.includes(batchEditValue)) {
+        toast.error(`選擇的值「${batchEditValue}」不在可用選項中`);
+        return;
+      }
+      // 如果是多選且當前值為空字串，設置為空陣列
+      if (column.isMultiSelect && !batchEditValue) {
+        processedValue = [];
+      }
+      // 如果是單選且為空，設置為空字串
+      else if (!column.isMultiSelect && !batchEditValue) {
+        processedValue = '';
+      }
     }
 
     console.log('Processed value:', processedValue);
@@ -728,9 +742,10 @@ export function DataTable({
   };
 
  
-    const batchDelete = async () => {
+  const batchDelete = async () => {
     console.log('batchDelete called', { selectedRows });
-    if (selectedRows.size === 0) {
+    const selectedCount = selectedRows.size;
+    if (selectedCount === 0) {
       toast.error('請選擇要刪除的資料');
       return;
     }
@@ -740,19 +755,23 @@ export function DataTable({
     try {
       // 使用 onDeleteRow 回调函数删除每一行
       if (onDeleteRow) {
-        await Promise.all(
-          rowIdsToDelete.map(rowId => onDeleteRow(table.id, rowId))
-        );
+        console.log('Calling onDeleteRow for each selected row');
+        const deletePromises = rowIdsToDelete.map(async (rowId) => {
+          console.log(`Deleting row ${rowId} from table ${table.id}`);
+          return await onDeleteRow(table.id, rowId);
+        });
+        await Promise.all(deletePromises);
+        console.log('All rows deleted successfully');
       } else {
         // 如果没有 onDeleteRow 回调，则使用 onUpdateTable 更新前端状态
         const updatedRows: Row[] = table.rows.filter(row => !selectedRows.has(row.id));
         onUpdateTable({ ...table, rows: updatedRows });
       }
       setSelectedRows(new Set());
-      toast.success(`已刪除 ${selectedRows.size} 筆資料`);
+      toast.success(`已刪除 ${selectedCount} 筆資料`);
     } catch (error) {
       console.error('批量删除失败:', error);
-      toast.error('批量删除失败');
+      toast.error('批量删除失败，請稍後重試');
     }
   };
 

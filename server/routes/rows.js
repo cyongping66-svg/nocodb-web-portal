@@ -110,13 +110,19 @@ router.put('/:tableId/rows/:rowId', (req, res) => {
 router.delete('/:tableId/rows/:rowId', (req, res) => {
   const { tableId, rowId } = req.params;
 
+  console.log(`DELETE /:tableId/rows/:rowId called with tableId: ${tableId}, rowId: ${rowId}`);
+
   try {
-    const result = db.deleteRow(tableId, rowId);
-    
+    console.log('Calling db.deleteRow...');
+    const result = db.deleteRow(rowId);
+    console.log('db.deleteRow result:', result);
+
     if (!result) {
+      console.log('Row not found, returning 404');
       return res.status(404).json({ error: 'Row not found' });
     }
 
+    console.log('Row deleted successfully');
     res.json({ message: 'Row deleted successfully' });
   } catch (err) {
     console.error('Error deleting row:', err);
